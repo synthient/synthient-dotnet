@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <RootNamespace>Synthient</RootNamespace>
+    <PackageId>Synthient.Client.GrpcSchema</PackageId>
+    <Description>Fetches the protobuf schema of the Synthient gRPC API using gRPC server reflection.</Description>
+    <PackageTags>$(PackageTags);grpc;protobuf</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.Reflection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Synthient.Client/Synthient.Client.csproj" />
+    <InternalsVisibleTo Include="Synthient.Client.GrpcSchema.Tests" />
+    <None Include="../../icon.png" Pack="true" PackagePath="/" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
