@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Installs the packed SDK from ../artifacts/packages into an isolated package folder, the way an application would. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Synthient.Client" Version="$(SynthientVersion)" />
+    <PackageReference Include="Synthient.Client.GrpcSchema" Version="$(SynthientVersion)" />
+  </ItemGroup>
+</Project>

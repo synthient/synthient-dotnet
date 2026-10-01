@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Publishes the core package as a Native AOT application, which must build with no trim or AOT warnings. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <PublishAot>true</PublishAot>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <DefineConstants>$(DefineConstants);CORE_ONLY</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Synthient.Client" Version="$(SynthientVersion)" />
+    <Compile Include="../Consumer/Program.cs" />
+  </ItemGroup>
+</Project>
