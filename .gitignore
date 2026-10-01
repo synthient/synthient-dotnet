@@ -1,0 +1,11 @@
+.DS_Store
+.idea/
+.vs/
+.vscode/
+*.user
+bin/
+obj/
+artifacts/
+TestResults/
+*.parquet
+consumer-test/packages/

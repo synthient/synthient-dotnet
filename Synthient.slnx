@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Synthient.Client/Synthient.Client.csproj" />
+    <Project Path="src/Synthient.Client.GrpcSchema/Synthient.Client.GrpcSchema.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Synthient.Client.Tests/Synthient.Client.Tests.csproj" />
+    <Project Path="tests/Synthient.Client.GrpcSchema.Tests/Synthient.Client.GrpcSchema.Tests.csproj" />
+  </Folder>
+</Solution>
