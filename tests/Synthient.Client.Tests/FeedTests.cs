@@ -170,6 +170,24 @@ public sealed class FeedTests
     }
 
     [Fact]
+    public async Task CancellationStopsBufferedExports()
+    {
+        var handler = new StubHandler(Fixtures.Json(200, Page(["2026-05-03/2", "2026-05-03/1"], "c1")));
+        using var client = Fixtures.StubClient(handler);
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        await using var exports = client.Proxies.ListAllExportsAsync().GetAsyncEnumerator(cancel.Token);
+
+        Assert.True(await exports.MoveNextAsync());
+        Assert.Equal(new ExportId("2026-05-03/2"), exports.Current.Id);
+        cancel.Cancel();
+
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => exports.MoveNextAsync().AsTask());
+
+        Assert.Equal(cancel.Token, error.CancellationToken);
+        Assert.Equal(1, handler.Count);
+    }
+
+    [Fact]
     public async Task InvalidLimitsFailBeforeEnumeration()
     {
         var handler = new StubHandler();

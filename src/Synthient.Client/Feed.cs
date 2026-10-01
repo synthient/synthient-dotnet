@@ -147,6 +147,7 @@ public sealed class Feed<TEvent>
             var page = await ListExportsAsync(limit, cursor, cancellationToken).ConfigureAwait(false);
             foreach (var export in page.Exports)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 yield return export;
             }
             if (string.IsNullOrEmpty(page.NextCursor))

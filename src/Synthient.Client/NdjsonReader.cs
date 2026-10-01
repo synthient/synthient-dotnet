@@ -16,6 +16,7 @@ internal sealed class NdjsonReader(Stream stream)
     {
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var pending = _buffer.AsMemory(_start, _end - _start);
             var newline = pending.Span.IndexOf((byte)'\n');
             ReadOnlyMemory<byte> line;

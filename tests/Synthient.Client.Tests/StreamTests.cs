@@ -215,6 +215,24 @@ public sealed class StreamTests
     }
 
     [Fact]
+    public async Task CancellationStopsBufferedEvents()
+    {
+        var handler = new StubHandler(Ndjson("{\"ip\":\"1.1.1.1\"}\n{\"ip\":\"2.2.2.2\"}\n"));
+        using var client = Fixtures.StubClient(handler);
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        await using var events = client.Proxies.StreamAsync().GetAsyncEnumerator(cancel.Token);
+
+        Assert.True(await events.MoveNextAsync());
+        Assert.Equal("1.1.1.1", events.Current.IP);
+        cancel.Cancel();
+
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => events.MoveNextAsync().AsTask());
+
+        Assert.Equal(cancel.Token, error.CancellationToken);
+        Assert.Equal(1, handler.Count);
+    }
+
+    [Fact]
     public async Task StalledStreamsTimeOut()
     {
         await using var server = await TestServer.StartAsync(async context =>
