@@ -213,6 +213,67 @@ public sealed class DownloadTests
     }
 
     [Fact]
+    public async Task CopiesDownloadsSynchronously()
+    {
+        var handler = new StubHandler(
+            Fixtures.Redirect(307, "https://storage.test/file"),
+            Fixtures.Text(200, "PAR1 data", "application/octet-stream"));
+        using var client = Fixtures.StubClient(handler);
+        await using var file = await client.Proxies.DownloadAsync(ExportId.Latest, Token);
+        using var destination = new MemoryStream();
+
+        file.CopyTo(destination);
+
+        Assert.Equal("PAR1 data", Encoding.UTF8.GetString(destination.ToArray()));
+    }
+
+    [Theory]
+    [InlineData("Read")]
+    [InlineData("ReadSpan")]
+    [InlineData("ReadByte")]
+    [InlineData("CopyTo")]
+    public async Task StalledSynchronousDownloadsTimeOut(string operation)
+    {
+        await using var server = await TestServer.StartAsync(async context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = 307;
+                context.Response.Headers.Location = "/storage/file";
+                return;
+            }
+            await context.Response.WriteAsync("PAR1", context.RequestAborted);
+            await context.Response.Body.FlushAsync(context.RequestAborted);
+            await Task.Delay(Timeout.Infinite, context.RequestAborted);
+        });
+        using var client = server.Client(o => o.Timeout = TimeSpan.FromMilliseconds(300));
+        await using var file = await client.Proxies.DownloadAsync(ExportId.Latest, Token);
+        var buffer = new byte[4];
+        await file.ReadExactlyAsync(buffer, Token);
+
+        await Assert.ThrowsAsync<ApiTimeoutException>(() => Task.Run(() =>
+        {
+            switch (operation)
+            {
+                case "Read":
+                    _ = file.Read(buffer, 0, buffer.Length);
+                    break;
+                case "ReadSpan":
+                    _ = file.Read(buffer.AsSpan());
+                    break;
+                case "ReadByte":
+                    _ = file.ReadByte();
+                    break;
+                case "CopyTo":
+                    file.CopyTo(Stream.Null);
+                    break;
+                default:
+                    throw new ArgumentException(operation);
+            }
+        }, Token).WaitAsync(TimeSpan.FromSeconds(10), Token));
+    }
+
+    [Fact]
     public async Task StalledDownloadsTimeOut()
     {
         await using var server = await TestServer.StartAsync(async context =>

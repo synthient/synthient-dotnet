@@ -1,7 +1,6 @@
 namespace Synthient;
 
-// A response body. It owns the response, and each asynchronous read is bounded by the client's
-// timeout.
+// A response body. It owns the response, and each read is bounded by the client's timeout.
 internal sealed class ResponseStream(Transport transport, HttpResponseMessage response, Stream content) : Stream
 {
     public override bool CanRead => true;
@@ -18,7 +17,11 @@ internal sealed class ResponseStream(Transport transport, HttpResponseMessage re
         set => throw new NotSupportedException();
     }
 
-    public override int Read(byte[] buffer, int offset, int count) => content.Read(buffer, offset, count);
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        ValidateBufferArguments(buffer, offset, count);
+        return ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+    }
 
     public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
         ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
