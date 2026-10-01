@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <RootNamespace>Synthient</RootNamespace>
+    <PackageId>Synthient.Client</PackageId>
+    <Description>The official .NET client for the Synthient API: IP and domain intelligence, account details, and real-time and bulk data feeds.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Synthient.Client.Tests" />
+    <None Include="../../icon.png" Pack="true" PackagePath="/" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
