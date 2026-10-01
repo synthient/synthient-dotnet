@@ -1,0 +1,36 @@
+name: vuln
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  vulnerable-packages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Find vulnerable packages
+        run: |
+          dotnet restore Synthient.slnx
+          dotnet list Synthient.slnx package --vulnerable --include-transitive --format json > vulnerable.json
+          if ! jq -e '[.projects[].frameworks[]? | (.topLevelPackages // []) + (.transitivePackages // []) | .[]] | length == 0' vulnerable.json > /dev/null; then
+            dotnet list Synthient.slnx package --vulnerable --include-transitive
+            exit 1
+          fi
