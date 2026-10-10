@@ -241,7 +241,12 @@ public sealed class StreamTests
             await context.Response.Body.FlushAsync(context.RequestAborted);
             await Task.Delay(Timeout.Infinite, context.RequestAborted);
         });
-        using var client = server.Client(o => o.Timeout = TimeSpan.FromMilliseconds(300));
+        var responses = 0;
+        using var client = server.Client(o =>
+        {
+            o.Timeout = TimeSpan.FromSeconds(1);
+            o.ResponseHook = _ => Interlocked.Increment(ref responses);
+        });
         var events = 0;
 
         await Assert.ThrowsAsync<ApiTimeoutException>(async () =>
@@ -253,7 +258,7 @@ public sealed class StreamTests
         });
 
         Assert.Equal(1, events);
-        Assert.Equal(1, server.Count);
+        Assert.Equal(1, responses);
     }
 
     [Fact]

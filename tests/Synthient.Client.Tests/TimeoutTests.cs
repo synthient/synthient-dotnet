@@ -35,11 +35,17 @@ public sealed class TimeoutTests
     public async Task StalledBodiesTimeOutWithoutRetrying()
     {
         await using var server = await StallingServer(sendHeaders: true);
-        using var client = server.Client(o => o.Timeout = TimeSpan.FromMilliseconds(200));
+        var responses = 0;
+        using var client = server.Client(o =>
+        {
+            o.Timeout = TimeSpan.FromSeconds(1);
+            o.ResponseHook = _ => Interlocked.Increment(ref responses);
+        });
 
-        await Assert.ThrowsAsync<ApiTimeoutException>(() => client.GetAccountAsync(Token));
+        var error = await Assert.ThrowsAsync<ApiTimeoutException>(() => client.GetAccountAsync(Token));
 
-        Assert.Equal(1, server.Count);
+        Assert.Equal("Timed out reading the response.", error.Message);
+        Assert.Equal(1, responses);
     }
 
     [Fact]
@@ -64,18 +70,18 @@ public sealed class TimeoutTests
         {
             if (Interlocked.Increment(ref calls) == 1)
             {
-                await Task.Delay(500, CancellationToken.None);
+                await Task.Delay(2000, CancellationToken.None);
             }
             await context.Response.WriteAsync(Fixtures.Account, CancellationToken.None);
         });
         using var client = server.Client(o =>
         {
-            o.Timeout = TimeSpan.FromMilliseconds(200);
+            o.Timeout = TimeSpan.FromSeconds(1);
             o.MaxRetries = 0;
         });
 
         await Assert.ThrowsAsync<ApiTimeoutException>(() => client.GetAccountAsync(Token));
-        await Task.Delay(500, Token);
+        await Task.Delay(1500, Token);
         var account = await client.GetAccountAsync(Token);
 
         Assert.Equal("Ada", account.FirstName);

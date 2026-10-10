@@ -246,7 +246,7 @@ public sealed class DownloadTests
             await context.Response.Body.FlushAsync(context.RequestAborted);
             await Task.Delay(Timeout.Infinite, context.RequestAborted);
         });
-        using var client = server.Client(o => o.Timeout = TimeSpan.FromMilliseconds(300));
+        using var client = server.Client(o => o.Timeout = TimeSpan.FromSeconds(1));
         await using var file = await client.Proxies.DownloadAsync(ExportId.Latest, Token);
         var buffer = new byte[4];
         await file.ReadExactlyAsync(buffer, Token);
@@ -288,7 +288,7 @@ public sealed class DownloadTests
             await context.Response.Body.FlushAsync(context.RequestAborted);
             await Task.Delay(Timeout.Infinite, context.RequestAborted);
         });
-        using var client = server.Client(o => o.Timeout = TimeSpan.FromMilliseconds(300));
+        using var client = server.Client(o => o.Timeout = TimeSpan.FromSeconds(1));
 
         await using var file = await client.Proxies.DownloadAsync(ExportId.Latest, Token);
 
