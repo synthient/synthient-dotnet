@@ -30,7 +30,12 @@ internal sealed class ApiResponse : IDisposable
     {
         Message = message;
         RequestUri = requestUri;
-        Metadata = new ResponseMetadata(message);
+        var headers = new Dictionary<string, IReadOnlyList<string>>();
+        foreach (var (name, values) in message.Headers.NonValidated.Concat(message.Content.Headers.NonValidated))
+        {
+            headers[name] = [.. values];
+        }
+        Metadata = new ResponseMetadata((int)message.StatusCode, headers);
         RetryAfter = Transport.ParseRetryAfter(Metadata.Header("Retry-After"));
     }
 

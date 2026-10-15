@@ -12,19 +12,9 @@ public sealed class ResponseMetadata
     /// <param name="statusCode">The HTTP status code.</param>
     /// <param name="headers">The response headers. Names are matched case-insensitively.</param>
     public ResponseMetadata(int statusCode, IReadOnlyDictionary<string, IReadOnlyList<string>> headers)
-        : this(statusCode, CopyHeaders(headers))
-    {
-    }
-
-    internal ResponseMetadata(HttpResponseMessage message)
-        : this((int)message.StatusCode, CopyHeaders(message))
-    {
-    }
-
-    private ResponseMetadata(int statusCode, Dictionary<string, IReadOnlyList<string>> headers)
     {
         StatusCode = statusCode;
-        Headers = headers.AsReadOnly();
+        Headers = CopyHeaders(headers).AsReadOnly();
         var requestId = Header("X-Request-Id");
         RequestId = string.IsNullOrEmpty(requestId) ? null : requestId;
         RateLimit = ParseRateLimit();
@@ -40,13 +30,10 @@ public sealed class ResponseMetadata
     public RateLimit? RateLimit { get; }
 
     /// <summary>
-    /// The response and content headers, with case-insensitive names. The collection is a copy that
-    /// the client does not read back, so it cannot affect the client.
+    /// The response and content headers, with case-insensitive names. The collection is a read-only
+    /// copy, so a response hook cannot change the headers the client reads.
     /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>> Headers { get; }
-
-    /// <inheritdoc/>
-    public override string ToString() => $"{StatusCode} (request {RequestId})";
 
     internal string? Header(string name) =>
         Headers.TryGetValue(name, out var values) && values.Count > 0 ? values[0] : null;
@@ -58,16 +45,6 @@ public sealed class ResponseMetadata
         foreach (var (name, values) in headers)
         {
             copy[name] = values.ToArray().AsReadOnly();
-        }
-        return copy;
-    }
-
-    private static Dictionary<string, IReadOnlyList<string>> CopyHeaders(HttpResponseMessage message)
-    {
-        var copy = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, values) in message.Headers.NonValidated.Concat(message.Content.Headers.NonValidated))
-        {
-            copy[name] = [.. values];
         }
         return copy;
     }

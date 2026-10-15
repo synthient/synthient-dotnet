@@ -124,6 +124,5 @@ public sealed class ResponseHookTests
         Assert.StartsWith("application/json", metadata.Headers["Content-Type"][0], StringComparison.Ordinal);
         Assert.Throws<NotSupportedException>(() => ((IDictionary<string, IReadOnlyList<string>>)metadata.Headers).Clear());
         Assert.Throws<NotSupportedException>(() => ((IList<string>)metadata.Headers["X-Request-Id"])[0] = "changed");
-        Assert.DoesNotContain("RateLimit", metadata.ToString(), StringComparison.Ordinal);
     }
 }
