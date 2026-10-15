@@ -35,7 +35,6 @@ internal sealed class TimestampConverter : JsonConverter<DateTimeOffset>
         writer.WriteNumberValue(value.ToUnixTimeSeconds());
 }
 
-// Reads a duration given in whole seconds.
 internal sealed class SecondsConverter : JsonConverter<TimeSpan>
 {
     public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
