@@ -88,8 +88,12 @@ public sealed class Feed<TEvent>
     /// <returns>The presigned URL.</returns>
     public async Task<Uri> GetDownloadUrlAsync(string id, CancellationToken cancellationToken = default)
     {
-        var request = new ApiRequest(HttpMethod.Get, _path + "/export/" + ExportPath(id), RetryPolicy.Transient, Expect: ExpectedStatus.Redirect);
+        var request = new ApiRequest(HttpMethod.Get, _path + "/export/" + ExportPath(id), RetryPolicy.Transient);
         using var response = await _transport.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode >= 400)
+        {
+            throw await _transport.CreateApiExceptionAsync(response, cancellationToken).ConfigureAwait(false);
+        }
         if (response.StatusCode < 300)
         {
             throw new SynthientException($"Expected a redirect to the export, got status {response.StatusCode}.");
@@ -123,8 +127,14 @@ public sealed class Feed<TEvent>
     /// <returns>The events.</returns>
     public async IAsyncEnumerable<TEvent> StreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var request = new ApiRequest(HttpMethod.Get, _path + "/stream", RetryPolicy.Transient, Accept: "application/x-ndjson", Expect: ExpectedStatus.Ok);
+        var request = new ApiRequest(HttpMethod.Get, _path + "/stream", RetryPolicy.Transient, Accept: "application/x-ndjson");
         using var response = await _transport.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        // A stream that answers with a 2xx other than 200 would end without events.
+        if (response.StatusCode != 200)
+        {
+            throw await _transport.CreateApiExceptionAsync(response, cancellationToken).ConfigureAwait(false);
+        }
         var body = await _transport.OpenBodyAsync(response.Message, cancellationToken).ConfigureAwait(false);
         await using (body.ConfigureAwait(false))
         {

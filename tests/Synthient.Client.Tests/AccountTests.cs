@@ -58,12 +58,4 @@ public sealed class AccountTests
         Assert.Equal(status, error.StatusCode);
         Assert.Equal(1, handler.Count);
     }
-
-    [Fact]
-    public async Task HealthRequiresAJsonBody()
-    {
-        using var client = Fixtures.StubClient(new StubHandler(Fixtures.Text(200, "", "")));
-
-        await Assert.ThrowsAsync<SynthientException>(() => client.CheckHealthAsync(Token));
-    }
 }

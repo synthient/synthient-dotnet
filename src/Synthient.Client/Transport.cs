@@ -17,26 +17,12 @@ internal enum RetryPolicy
     RateLimitOnly,
 }
 
-// The statuses a request accepts. Any other status throws ApiException.
-internal enum ExpectedStatus
-{
-    // Any 2xx status.
-    Success,
-
-    // Only 200. A stream that answers with another 2xx would end without events.
-    Ok,
-
-    // Any status below 400. The caller rejects a 2xx itself.
-    Redirect,
-}
-
 internal sealed record ApiRequest(
     HttpMethod Method,
     string Path,
     RetryPolicy Policy,
     byte[]? Body = null,
-    string Accept = "application/json",
-    ExpectedStatus Expect = ExpectedStatus.Success);
+    string Accept = "application/json");
 
 internal sealed class ApiResponse : IDisposable
 {
@@ -215,35 +201,13 @@ internal sealed class Transport : IDisposable
     internal async Task<T> GetJsonAsync<T>(ApiRequest request, CancellationToken cancellationToken)
     {
         using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
-        var body = await ReadBodyAsync(response, cancellationToken).ConfigureAwait(false);
-        return Json.Deserialize(body, Json.TypeInfo<T>());
-    }
-
-    internal async Task<ArraySegment<byte>> ReadBodyAsync(ApiResponse response, CancellationToken cancellationToken)
-    {
-        var body = await ReadUpToAsync(response.Message, MaxResponseSize, cancellationToken).ConfigureAwait(false);
-        return body ?? throw new SynthientException($"The response body exceeds {MaxResponseSize} bytes.");
-    }
-
-    // Sends an API request, retrying as its policy allows, and throws ApiException if the final
-    // status is not one the request expects. The caller owns the returned response.
-    internal async Task<ApiResponse> SendAsync(ApiRequest request, CancellationToken cancellationToken)
-    {
-        var response = await SendWithRetriesAsync(request, cancellationToken).ConfigureAwait(false);
-        var expected = request.Expect switch
-        {
-            ExpectedStatus.Ok => response.StatusCode == 200,
-            ExpectedStatus.Redirect => response.StatusCode < 400,
-            _ => response.StatusCode is >= 200 and <= 299,
-        };
-        if (expected)
-        {
-            return response;
-        }
-        using (response)
+        if (response.StatusCode is < 200 or >= 300)
         {
             throw await CreateApiExceptionAsync(response, cancellationToken).ConfigureAwait(false);
         }
+        var body = await ReadUpToAsync(response.Message, MaxResponseSize, cancellationToken).ConfigureAwait(false)
+            ?? throw new SynthientException($"The response body exceeds {MaxResponseSize} bytes.");
+        return Json.Deserialize(body, Json.TypeInfo<T>());
     }
 
     // Fetches an export from storage, following redirects itself so that each hop is checked. Only
@@ -318,7 +282,9 @@ internal sealed class Transport : IDisposable
         }
     }
 
-    private async Task<ApiResponse> SendWithRetriesAsync(ApiRequest request, CancellationToken cancellationToken)
+    // Sends an API request, retrying as its policy allows, and returns the final response whatever
+    // its status. The caller owns the response and checks its status.
+    internal async Task<ApiResponse> SendAsync(ApiRequest request, CancellationToken cancellationToken)
     {
         var uri = new Uri(_baseAddress + request.Path);
         for (var attempt = 0; ; attempt++)
@@ -363,7 +329,7 @@ internal sealed class Transport : IDisposable
         }
     }
 
-    private async Task<ApiException> CreateApiExceptionAsync(ApiResponse response, CancellationToken cancellationToken)
+    internal async Task<ApiException> CreateApiExceptionAsync(ApiResponse response, CancellationToken cancellationToken)
     {
         ArraySegment<byte>? body = null;
         Exception? failure = null;

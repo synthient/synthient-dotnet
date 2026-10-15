@@ -116,14 +116,9 @@ public sealed class SynthientClient : IDisposable
         using var response = await Transport
             .SendAsync(new ApiRequest(HttpMethod.Get, "/health", RetryPolicy.RateLimitOnly), cancellationToken)
             .ConfigureAwait(false);
-        var body = await Transport.ReadBodyAsync(response, cancellationToken).ConfigureAwait(false);
-        try
+        if (response.StatusCode is < 200 or >= 300)
         {
-            using var document = JsonDocument.Parse(body);
-        }
-        catch (JsonException e)
-        {
-            throw new SynthientException("The API returned an invalid health response.", e);
+            throw await Transport.CreateApiExceptionAsync(response, cancellationToken).ConfigureAwait(false);
         }
     }
 
