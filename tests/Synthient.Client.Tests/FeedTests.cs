@@ -21,7 +21,7 @@ public sealed class FeedTests
         var handler = new StubHandler(_ => Fixtures.Json(200, MetaJson));
         using var client = Fixtures.StubClient(handler);
 
-        await client.Proxies.GetExportMetaAsync(new ExportId(id), Token);
+        await client.Proxies.GetExportMetaAsync(id, Token);
 
         Assert.Equal($"/api/v4/feeds/proxies/export/{path}/meta", Assert.Single(handler.Requests).Path);
     }
@@ -43,23 +43,20 @@ public sealed class FeedTests
         var handler = new StubHandler();
         using var client = Fixtures.StubClient(handler);
 
-        await Assert.ThrowsAsync<ArgumentException>(() => client.Proxies.GetExportMetaAsync(new ExportId(id), Token));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.Proxies.GetDownloadUrlAsync(new ExportId(id), Token));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.Proxies.GetExportMetaAsync(default, Token));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.Proxies.GetExportMetaAsync(id, Token));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.Proxies.GetDownloadUrlAsync(id, Token));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => client.Proxies.GetExportMetaAsync(null!, Token));
         Assert.Equal(0, handler.Count);
     }
 
     [Fact]
     public void BuildsExportIds()
     {
-        Assert.Equal("2026-05-04", ExportId.Daily(new DateOnly(2026, 5, 4)).ToString());
-        Assert.Equal("2026-05-04/3", ExportId.Hourly(new DateOnly(2026, 5, 4), 3).ToString());
+        Assert.Equal("2026-05-04", ExportId.Daily(new DateOnly(2026, 5, 4)));
+        Assert.Equal("2026-05-04/3", ExportId.Hourly(new DateOnly(2026, 5, 4), 3));
         Assert.Throws<ArgumentOutOfRangeException>(() => ExportId.Hourly(new DateOnly(2026, 5, 4), 24));
         Assert.Throws<ArgumentOutOfRangeException>(() => ExportId.Hourly(new DateOnly(2026, 5, 4), -1));
-        Assert.Equal(new ExportId("latest"), ExportId.Latest);
-        Assert.True(ExportId.Latest == new ExportId("latest"));
-        Assert.NotEqual(new ExportId("2026-05-04/03"), ExportId.Hourly(new DateOnly(2026, 5, 4), 3));
-        Assert.Equal("", default(ExportId).ToString());
+        Assert.Equal("latest", ExportId.Latest);
     }
 
     public static TheoryData<string> Feeds => ["proxies", "anonymizers", "torrents", "ja4t", "helio/http", "helio/https", "helio/dns", "helio/adb"];
@@ -105,7 +102,7 @@ public sealed class FeedTests
         var ids = new List<string>();
         await foreach (var export in client.Proxies.ListAllExportsAsync(2, cancellationToken: Token))
         {
-            ids.Add(export.Id.ToString());
+            ids.Add(export.Id);
         }
 
         Assert.Equal(["2026-05-03/2", "2026-05-03/1", "2026-05-03/0"], ids);
@@ -178,7 +175,7 @@ public sealed class FeedTests
         await using var exports = client.Proxies.ListAllExportsAsync().GetAsyncEnumerator(cancel.Token);
 
         Assert.True(await exports.MoveNextAsync());
-        Assert.Equal(new ExportId("2026-05-03/2"), exports.Current.Id);
+        Assert.Equal("2026-05-03/2", exports.Current.Id);
         cancel.Cancel();
 
         var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => exports.MoveNextAsync().AsTask());
@@ -211,7 +208,7 @@ public sealed class FeedTests
         Assert.Equal(1234, meta.Rows);
     }
 
-    internal static Func<ExportId, Task> FeedOf(SynthientClient client, string feed) => feed switch
+    internal static Func<string, Task> FeedOf(SynthientClient client, string feed) => feed switch
     {
         "proxies" => id => client.Proxies.GetExportMetaAsync(id, Token),
         "anonymizers" => id => client.Anonymizers.GetExportMetaAsync(id, Token),

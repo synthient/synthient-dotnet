@@ -248,7 +248,6 @@ public sealed class ConformanceTests
             "string" => name switch
             {
                 "ip" => [typeof(string), typeof(IPAddress)],
-                "id" => [typeof(string), typeof(ExportId)],
                 "date" => [typeof(DateOnly)],
                 _ => [typeof(string)],
             },

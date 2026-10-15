@@ -7,7 +7,7 @@ namespace Synthient;
 
 [JsonSourceGenerationOptions(
     RespectNullableAnnotations = true,
-    Converters = [typeof(TimestampConverter), typeof(SecondsConverter), typeof(IPAddressConverter), typeof(ExportIdConverter)])]
+    Converters = [typeof(TimestampConverter), typeof(SecondsConverter), typeof(IPAddressConverter)])]
 [JsonSerializable(typeof(Account))]
 [JsonSerializable(typeof(IPInfo))]
 [JsonSerializable(typeof(IPBatchRequest))]

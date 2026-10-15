@@ -65,14 +65,3 @@ internal sealed class IPAddressConverter : JsonConverter<IPAddress>
     public override void Write(Utf8JsonWriter writer, IPAddress value, JsonSerializerOptions options) =>
         writer.WriteStringValue(value.ToString());
 }
-
-internal sealed class ExportIdConverter : JsonConverter<ExportId>
-{
-    public override ExportId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-        reader.TokenType == JsonTokenType.String
-            ? new ExportId(reader.GetString()!)
-            : throw new JsonException("Expected an export ID string.");
-
-    public override void Write(Utf8JsonWriter writer, ExportId value, JsonSerializerOptions options) =>
-        writer.WriteStringValue(value.ToString());
-}

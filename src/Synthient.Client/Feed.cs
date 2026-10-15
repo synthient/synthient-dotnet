@@ -69,12 +69,12 @@ public sealed class Feed<TEvent>
     }
 
     /// <summary>Returns the checksum, size, row count, and parquet schema of an export. It costs no credits.</summary>
-    /// <param name="id">The export.</param>
+    /// <param name="id">The export ID. See <see cref="ExportId"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The export's metadata.</returns>
-    public Task<ExportMeta> GetExportMetaAsync(ExportId id, CancellationToken cancellationToken = default)
+    public Task<ExportMeta> GetExportMetaAsync(string id, CancellationToken cancellationToken = default)
     {
-        var path = _path + "/export/" + id.ToPath() + "/meta";
+        var path = _path + "/export/" + ExportPath(id) + "/meta";
         return _transport.GetJsonAsync<ExportMeta>(new ApiRequest(HttpMethod.Get, path, RetryPolicy.Transient), cancellationToken);
     }
 
@@ -83,12 +83,12 @@ public sealed class Feed<TEvent>
     /// access without an API key, so treat it as a secret. It is useful for tools that read parquet
     /// over HTTPS directly.
     /// </summary>
-    /// <param name="id">The export.</param>
+    /// <param name="id">The export ID. See <see cref="ExportId"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The presigned URL.</returns>
-    public async Task<Uri> GetDownloadUrlAsync(ExportId id, CancellationToken cancellationToken = default)
+    public async Task<Uri> GetDownloadUrlAsync(string id, CancellationToken cancellationToken = default)
     {
-        var request = new ApiRequest(HttpMethod.Get, _path + "/export/" + id.ToPath(), RetryPolicy.Transient, Expect: ExpectedStatus.Redirect);
+        var request = new ApiRequest(HttpMethod.Get, _path + "/export/" + ExportPath(id), RetryPolicy.Transient, Expect: ExpectedStatus.Redirect);
         using var response = await _transport.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode < 300)
         {
@@ -104,10 +104,10 @@ public sealed class Feed<TEvent>
     /// pass a token to each read to bound the rest. The SDK does not verify the file: compare its
     /// SHA-256 with <see cref="Export.Checksum"/> if needed.
     /// </summary>
-    /// <param name="id">The export.</param>
+    /// <param name="id">The export ID. See <see cref="ExportId"/>.</param>
     /// <param name="cancellationToken">Cancels opening the file.</param>
     /// <returns>The file contents.</returns>
-    public async Task<Stream> DownloadAsync(ExportId id, CancellationToken cancellationToken = default)
+    public async Task<Stream> DownloadAsync(string id, CancellationToken cancellationToken = default)
     {
         var location = await GetDownloadUrlAsync(id, cancellationToken).ConfigureAwait(false);
         return await _transport.DownloadAsync(location, cancellationToken).ConfigureAwait(false);
@@ -160,5 +160,26 @@ public sealed class Feed<TEvent>
             }
             cursor = page.NextCursor;
         }
+    }
+
+    // Returns an export ID as a URL path, with the hour unpadded.
+    private static string ExportPath(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        var parts = id.Split('/');
+        var validDay = DateOnly.TryParseExact(parts[0], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day);
+        if (id == ExportId.Latest || (validDay && parts.Length == 1))
+        {
+            return id;
+        }
+        if (validDay
+            && parts.Length == 2
+            && parts[1].Length is 1 or 2
+            && int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var hour)
+            && hour <= 23)
+        {
+            return ExportId.Hourly(day, hour);
+        }
+        throw new ArgumentException($"\"{id}\" is not a valid export ID.", nameof(id));
     }
 }

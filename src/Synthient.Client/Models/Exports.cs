@@ -26,7 +26,7 @@ public sealed class Export
     /// may have the ID <see cref="ExportId.Latest"/>.
     /// </summary>
     [JsonPropertyName("id")]
-    public required ExportId Id { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>Whether the export covers an hour or a day. See <see cref="ExportKind"/>.</summary>
     [JsonPropertyName("kind")]
@@ -66,7 +66,7 @@ public sealed class ExportMeta
 {
     /// <summary>Identifies the export.</summary>
     [JsonPropertyName("id")]
-    public required ExportId Id { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>The feed's stream identifier.</summary>
     [JsonPropertyName("stream")]
