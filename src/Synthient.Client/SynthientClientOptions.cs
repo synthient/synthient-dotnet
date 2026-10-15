@@ -51,7 +51,9 @@ public sealed class SynthientClientOptions
     /// send the API key to the storage host, so a <see cref="SocketsHttpHandler"/> or
     /// <see cref="HttpClientHandler"/> with <c>AllowAutoRedirect</c> set is rejected. It should not
     /// retry requests either: the client retries on its own, and a handler that resends a billed
-    /// lookup can be charged twice.
+    /// lookup can be charged twice. Set <see cref="SocketsHttpHandler.MaxResponseDrainSize"/> to 0
+    /// so that leaving a stream or download early closes its connection, as the client's own
+    /// handler does, instead of reading up to 1 MiB more of it.
     /// </summary>
     public HttpMessageHandler? Handler { get; set; }
 }

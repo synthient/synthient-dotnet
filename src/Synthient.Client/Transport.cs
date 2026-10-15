@@ -144,6 +144,10 @@ internal sealed class Transport : IDisposable
             AutomaticDecompression = System.Net.DecompressionMethods.All,
             ConnectTimeout = TimeSpan.FromSeconds(10),
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+
+            // Leaving a stream or download early closes its connection, instead of reading up to
+            // 1 MiB more of it in the background to reuse the connection.
+            MaxResponseDrainSize = 0,
         };
 
         _http = new HttpClient(transport, ownHandler) { Timeout = Timeout.InfiniteTimeSpan };

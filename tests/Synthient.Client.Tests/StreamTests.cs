@@ -37,6 +37,34 @@ public sealed class StreamTests
         Assert.Equal("application/x-ndjson", request.Header("Accept"));
     }
 
+    [Fact]
+    public async Task LeavingTheLoopClosesTheConnection()
+    {
+        var disconnected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var server = await TestServer.StartAsync(async context =>
+        {
+            await context.Response.WriteAsync("{\"ip\":\"1.1.1.1\"}\n", context.RequestAborted);
+            await context.Response.Body.FlushAsync(context.RequestAborted);
+            try
+            {
+                await Task.Delay(Timeout.Infinite, context.RequestAborted);
+            }
+            catch (OperationCanceledException)
+            {
+                disconnected.SetResult();
+            }
+        });
+        using var client = server.Client();
+
+        await foreach (var _ in client.Proxies.StreamAsync(Token))
+        {
+            break;
+        }
+
+        // SocketsHttpHandler's default drain would keep a quiet stream open for 2 seconds.
+        await disconnected.Task.WaitAsync(TimeSpan.FromSeconds(1), Token);
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
