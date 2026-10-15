@@ -68,12 +68,13 @@ public sealed class GrpcSchemaTests : IAsyncLifetime
     [Fact]
     public async Task AppliesOptions()
     {
-        var options = new GrpcSchemaOptions { Endpoint = "grpc://" + Address, Plaintext = true, IncludeReflection = true };
+        var options = new GrpcSchemaOptions { Endpoint = "grpc://" + Address, Plaintext = true };
+        options.Symbols.Add("grpc.reflection.v1.ServerReflection");
 
         var schema = await GrpcSchema.FetchAsync("", options, Token);
 
-        Assert.Contains("grpc.health.v1.Health", schema.Symbols);
-        Assert.Contains(schema.Symbols, symbol => symbol.StartsWith("grpc.reflection.", StringComparison.Ordinal));
+        Assert.Equal(["grpc.reflection.v1.ServerReflection"], schema.Symbols);
+        Assert.Contains(schema.DescriptorSet.File, file => file.Package == "grpc.reflection.v1");
         Assert.All(Keys, Assert.Null);
     }
 
@@ -151,7 +152,7 @@ public sealed class GrpcSchemaTests : IAsyncLifetime
     [InlineData("::1", "[::1]:443")]
     public void NormalizesEndpoints(string? endpoint, string normalized)
     {
-        Assert.Equal(normalized, GrpcSchema.NormalizeEndpoint(endpoint));
+        Assert.Equal(normalized, GrpcSchema.ParseEndpoint(endpoint).Endpoint);
     }
 
     [Theory]
@@ -163,7 +164,7 @@ public sealed class GrpcSchemaTests : IAsyncLifetime
     [InlineData("[::1]junk")]
     public void RejectsInvalidEndpoints(string endpoint)
     {
-        Assert.Throws<ArgumentException>(() => GrpcSchema.NormalizeEndpoint(endpoint));
+        Assert.Throws<ArgumentException>(() => GrpcSchema.ParseEndpoint(endpoint).Endpoint);
     }
 
     [Fact]

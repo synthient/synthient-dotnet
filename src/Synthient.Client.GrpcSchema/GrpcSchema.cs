@@ -49,7 +49,7 @@ public static class GrpcSchema
             var symbols = options.Symbols.Select(symbol => symbol.Trim()).Where(symbol => symbol.Length > 0).Distinct().ToList();
             if (symbols.Count == 0)
             {
-                symbols = await reflector.ListServicesAsync(options.IncludeReflection).ConfigureAwait(false);
+                symbols = await reflector.ListServicesAsync().ConfigureAwait(false);
             }
             if (symbols.Count == 0)
             {
@@ -89,15 +89,6 @@ public static class GrpcSchema
     }
 
     /// <summary>
-    /// Converts an endpoint to host:port form. It accepts host:port, a bare host (port 443 is
-    /// assumed), and grpc:// or https:// URLs. An empty endpoint is <see cref="DefaultEndpoint"/>.
-    /// </summary>
-    /// <param name="endpoint">The endpoint.</param>
-    /// <returns>The endpoint as host:port.</returns>
-    /// <exception cref="ArgumentException">The endpoint is malformed.</exception>
-    public static string NormalizeEndpoint(string? endpoint) => ParseEndpoint(endpoint).Endpoint;
-
-    /// <summary>
     /// Returns a human-readable explanation of a common gRPC failure from <see cref="FetchAsync"/>,
     /// or null if there is none.
     /// </summary>
@@ -123,7 +114,7 @@ public static class GrpcSchema
         };
     }
 
-    private static (string Endpoint, string Host) ParseEndpoint(string? endpoint)
+    internal static (string Endpoint, string Host) ParseEndpoint(string? endpoint)
     {
         var raw = string.IsNullOrWhiteSpace(endpoint) ? DefaultEndpoint : endpoint.Trim();
         var scheme = raw.IndexOf("://", StringComparison.Ordinal);
@@ -228,7 +219,7 @@ public static class GrpcSchema
         string host,
         CancellationToken cancellationToken)
     {
-        public async Task<List<string>> ListServicesAsync(bool includeReflection)
+        public async Task<List<string>> ListServicesAsync()
         {
             var response = await SendAsync(new ServerReflectionRequest { ListServices = "" }).ConfigureAwait(false);
             if (response.MessageResponseCase != ServerReflectionResponse.MessageResponseOneofCase.ListServicesResponse)
@@ -239,7 +230,7 @@ public static class GrpcSchema
             [
                 .. response.ListServicesResponse.Service
                     .Select(service => service.Name.Trim())
-                    .Where(name => name.Length > 0 && (includeReflection || !name.StartsWith("grpc.reflection.", StringComparison.Ordinal)))
+                    .Where(name => name.Length > 0 && !name.StartsWith("grpc.reflection.", StringComparison.Ordinal))
                     .Order(StringComparer.Ordinal),
             ];
         }
@@ -294,10 +285,10 @@ public sealed class GrpcSchemaOptions
     /// <summary>Disables TLS, for local development servers.</summary>
     public bool Plaintext { get; set; }
 
-    /// <summary>Includes the reflection service itself when listing services.</summary>
-    public bool IncludeReflection { get; set; }
-
-    /// <summary>Fully qualified service or message names to resolve. Empty resolves every service the server lists.</summary>
+    /// <summary>
+    /// Fully qualified service or message names to resolve. Empty resolves every service the server
+    /// lists, except the grpc.reflection services.
+    /// </summary>
     public IList<string> Symbols { get; } = [];
 
     /// <summary>The deadline for the whole fetch. The default is 30 seconds.</summary>
