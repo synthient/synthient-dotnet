@@ -120,9 +120,9 @@ public class ApiConnectionException : SynthientException
 }
 
 /// <summary>
-/// The client's <see cref="SynthientClientOptions.Timeout"/> elapsed while waiting on the network.
-/// Cancelling a call's <see cref="CancellationToken"/> throws <see cref="OperationCanceledException"/>
-/// instead.
+/// The client's <see cref="SynthientClientOptions.Timeout"/> elapsed while waiting on the network,
+/// or the default handler's 10-second connect timeout elapsed. Cancelling a call's
+/// <see cref="CancellationToken"/> throws <see cref="OperationCanceledException"/> instead.
 /// </summary>
 public sealed class ApiTimeoutException : ApiConnectionException
 {

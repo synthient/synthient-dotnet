@@ -14,19 +14,22 @@ namespace Synthient;
 /// <para>
 /// Calls that fail with an HTTP error status throw <see cref="ApiException"/>. Calls that get no
 /// response throw <see cref="ApiConnectionException"/>, or <see cref="ApiTimeoutException"/> when
-/// <see cref="SynthientClientOptions.Timeout"/> elapses. Responses the SDK cannot decode throw
-/// <see cref="SynthientException"/>. Cancelling a call's token throws
-/// <see cref="OperationCanceledException"/>.
+/// <see cref="SynthientClientOptions.Timeout"/> or the default handler's 10-second connect timeout
+/// elapses. Responses the SDK cannot decode throw <see cref="SynthientException"/>. Cancelling a
+/// call's token throws <see cref="OperationCanceledException"/>.
 /// </para>
 /// <para>
 /// Calls that cost no credits, other than <see cref="CheckHealthAsync"/>, are retried on 500, 502,
-/// 503, and 504 responses, on connection failures and timeouts, and on 429 responses that carry
-/// Retry-After. Billed lookups and health checks are retried only on 429 responses that carry
-/// Retry-After, which the rate limiter returns before doing any work, so a lookup is never sent
-/// twice after the API may have charged for it. A 429 without
-/// Retry-After means the key's monthly request budget is spent or it has too many open streams,
-/// so it is not retried. Retries back off exponentially with jitter, wait at least as long as
-/// Retry-After asks, and stop if it asks for more than a minute.
+/// 503, and 504 responses, on 429 responses that carry Retry-After, and when no response arrives
+/// because the connection failed (other than a TLS error) or
+/// <see cref="SynthientClientOptions.Timeout"/> elapsed. A failure after the response has started,
+/// such as a body or stream that breaks off or stalls, is not retried, and neither is the file
+/// transfer from the storage host in <see cref="Feed{TEvent}.DownloadAsync"/>. Billed lookups and
+/// health checks are retried only on 429 responses that carry Retry-After, which the rate limiter
+/// returns before doing any work, so a lookup is never sent twice after the API may have charged
+/// for it. A 429 without Retry-After means the key's monthly request budget is spent or it has too
+/// many open streams, so it is not retried. Retries back off exponentially with jitter, wait at
+/// least as long as Retry-After asks, and stop if it asks for more than a minute.
 /// </para>
 /// </remarks>
 public sealed class SynthientClient : IDisposable
@@ -105,8 +108,9 @@ public sealed class SynthientClient : IDisposable
         Transport.GetJsonAsync<Account>(new ApiRequest(HttpMethod.Get, "/account/me", RetryPolicy.Transient), cancellationToken);
 
     /// <summary>
-    /// Completes if the API and its dependencies are healthy, and throws a 503
-    /// <see cref="ApiException"/> if not. It costs no credits.
+    /// Completes if the API and its dependencies are healthy. Any non-2xx response throws an
+    /// <see cref="ApiException"/>, such as a 503 when a dependency is down or the edge's 401 for a
+    /// malformed key. It costs no credits.
     /// </summary>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>A task that completes when the API reports it is healthy.</returns>

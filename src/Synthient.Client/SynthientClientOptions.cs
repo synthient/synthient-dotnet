@@ -29,8 +29,9 @@ public sealed class SynthientClientOptions
     /// <see cref="ApiTimeoutException"/>. It bounds each wait for response headers and each read of
     /// a response body, stream, or download, not the length of a whole call, so long-lived streams
     /// and large downloads are not cut off. The default is 60 seconds.
-    /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> disables it. Use a
-    /// <see cref="CancellationToken"/> to bound a whole call.
+    /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> disables it. Separately, the default
+    /// handler gives up connecting after 10 seconds, which also throws
+    /// <see cref="ApiTimeoutException"/>. Use a <see cref="CancellationToken"/> to bound a whole call.
     /// </summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(60);
 
