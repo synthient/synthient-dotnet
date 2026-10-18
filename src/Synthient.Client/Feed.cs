@@ -119,7 +119,7 @@ public sealed class Feed<TEvent>
 
     /// <summary>
     /// Streams the feed's events in real time. Each enumeration opens a new connection, which the
-    /// API closes after about 30 minutes, ending the enumeration without an error. Events sent
+    /// API closes after up to 30 minutes, ending the enumeration without an error. Events sent
     /// between connections are not replayed, so reconnect promptly to keep up. Leaving the loop
     /// closes the connection.
     /// </summary>
