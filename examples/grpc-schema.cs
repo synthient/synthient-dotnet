@@ -14,7 +14,8 @@ try
 }
 catch (GrpcSchemaException e)
 {
-    Console.Error.WriteLine($"{e.Message} {GrpcSchema.Explain(e)}");
+    var explanation = GrpcSchema.Explain(e);
+    Console.Error.WriteLine(explanation is null ? e.Message : $"{explanation} {e.Message}");
     return 1;
 }
 
