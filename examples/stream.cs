@@ -24,16 +24,22 @@ while (!stop.IsCancellationRequested)
         {
             Console.WriteLine($"{proxy.Timestamp:u} {proxy.IP} {proxy.Provider} {proxy.Type} {proxy.CountryCode}");
         }
-        // The server closes each stream after about 30 minutes. Pause before
-        // reconnecting so repeated failures stay under the connection rate limit.
-        await Task.Delay(TimeSpan.FromSeconds(2), stop.Token);
     }
     catch (OperationCanceledException) when (stop.IsCancellationRequested)
     {
     }
+    catch (ApiException e) when (e.StatusCode is 401 or 403)
+    {
+        // Reconnecting can't fix a rejected key or a missing scope.
+        Console.Error.WriteLine($"stream: {e.Message}");
+        return 1;
+    }
     catch (SynthientException e)
     {
         Console.Error.WriteLine($"stream: {e.Message}");
+        // Pause after a failure so a failing stream doesn't reconnect in a
+        // tight loop.
         await Task.Delay(TimeSpan.FromSeconds(2));
     }
 }
+return 0;
