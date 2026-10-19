@@ -25,8 +25,8 @@ namespace Synthient;
 [JsonSerializable(typeof(HeliosAdbEvent))]
 internal sealed partial class SynthientJsonContext : JsonSerializerContext;
 
-// The serializer setup shared by every call. Models are strict: a missing required property, a
-// null where the model has no null, and a null collection element all fail decoding.
+// Models are strict: a missing required property, a null where the model has no null, and a null
+// collection element all fail decoding.
 internal static class Json
 {
     internal static readonly JsonSerializerOptions Options = new(SynthientJsonContext.Default.Options)

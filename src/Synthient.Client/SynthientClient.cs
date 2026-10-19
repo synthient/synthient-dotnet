@@ -13,23 +13,21 @@ namespace Synthient;
 /// <remarks>
 /// <para>
 /// Calls that fail with an HTTP error status throw <see cref="ApiException"/>. Calls that get no
-/// response throw <see cref="ApiConnectionException"/>, or <see cref="ApiTimeoutException"/> when
-/// <see cref="SynthientClientOptions.Timeout"/> or the default handler's 10-second connect timeout
-/// elapses. Responses the SDK cannot decode throw <see cref="SynthientException"/>. Cancelling a
-/// call's token throws <see cref="OperationCanceledException"/>.
+/// response throw <see cref="ApiConnectionException"/>, or <see cref="ApiTimeoutException"/> when a
+/// timeout elapses. Responses the SDK cannot decode throw <see cref="SynthientException"/>.
+/// Cancelling a call's token throws <see cref="OperationCanceledException"/>.
 /// </para>
 /// <para>
 /// Calls that cost no credits, other than <see cref="CheckHealthAsync"/>, are retried on 500, 502,
-/// 503, and 504 responses, on 429 responses that carry Retry-After, and when no response arrives
-/// because the connection failed (other than a TLS error) or
-/// <see cref="SynthientClientOptions.Timeout"/> elapsed. A failure after the response has started,
-/// such as a body or stream that breaks off or stalls, is not retried, and neither is the file
-/// transfer from the storage host in <see cref="Feed{TEvent}.DownloadAsync"/>. Billed lookups and
-/// health checks are retried only on 429 responses that carry Retry-After, which the rate limiter
-/// returns before doing any work, so a lookup is never sent twice after the API may have charged
-/// for it. A 429 without Retry-After means the key's monthly request budget is spent or it has too
-/// many open streams, so it is not retried. Retries back off exponentially with jitter, wait at
-/// least as long as Retry-After asks, and stop if it asks for more than a minute.
+/// 503, and 504 responses, on 429 responses with Retry-After, and when the connection fails (other
+/// than a TLS error) or <see cref="SynthientClientOptions.Timeout"/> elapses before a response.
+/// Failures after the response has started, such as a stream that breaks off or stalls, are not
+/// retried, and neither is the storage transfer in <see cref="Feed{TEvent}.DownloadAsync"/>.
+/// Billed lookups and health checks are retried only on 429 responses with Retry-After, which the
+/// rate limiter returns before doing any work, so a lookup is never sent twice after the API may
+/// have charged for it. A 429 without Retry-After means the key's monthly request budget is spent
+/// or it has too many open streams, and is not retried. Retries back off exponentially with
+/// jitter, wait at least as long as Retry-After asks, and stop if it asks for more than a minute.
 /// </para>
 /// </remarks>
 public sealed class SynthientClient : IDisposable
@@ -147,11 +145,11 @@ public sealed class SynthientClient : IDisposable
 
     /// <summary>
     /// Looks up as many as 1000 addresses in one request. Private and reserved addresses are skipped
-    /// and duplicates collapse into one result, so there can be fewer results than addresses. Match
-    /// results by <see cref="IPInfo.IP"/> rather than by position. A batch with no address the API
-    /// can look up fails with a 422 <see cref="ApiException"/>. The API bills ceil(n * 0.9) credits
-    /// for the n distinct addresses it looks up, and bills nothing if the account cannot cover the
-    /// whole batch. An empty batch returns no results without a request.
+    /// and duplicates collapse, so match results by <see cref="IPInfo.IP"/> rather than by
+    /// position. A batch with no address the API can look up fails with a 422
+    /// <see cref="ApiException"/>. The API bills ceil(n * 0.9) credits for the n distinct addresses
+    /// it looks up, and nothing if the account cannot cover the whole batch. An empty batch returns
+    /// no results without a request.
     /// </summary>
     /// <param name="ips">The addresses.</param>
     /// <param name="cancellationToken">Cancels the call.</param>

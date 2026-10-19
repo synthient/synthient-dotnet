@@ -268,8 +268,6 @@ internal sealed class Transport : IDisposable
         return new ResponseStream(this, response, content);
     }
 
-    // Reads from a response body, failing with ApiTimeoutException if the read stalls for longer
-    // than the timeout.
     internal async ValueTask<int> ReadAsync(Stream stream, Memory<byte> buffer, CancellationToken cancellationToken)
     {
         using var timeout = StartTimeout(cancellationToken);

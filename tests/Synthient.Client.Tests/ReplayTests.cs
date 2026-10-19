@@ -3,8 +3,7 @@ using System.Net;
 namespace Synthient.Tests;
 
 // SocketsHttpHandler silently resends a bodiless request when a reused HTTP/1.1 connection closes
-// before any response bytes arrive. The server may already have handled that request, so the SDK
-// must never let it happen to a billed lookup.
+// before any response bytes arrive, which must never happen to a billed lookup.
 public sealed class ReplayTests
 {
     // The first request warms a pooled connection, the second is read and then the connection is

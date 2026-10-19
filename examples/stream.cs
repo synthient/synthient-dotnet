@@ -37,8 +37,7 @@ while (!stop.IsCancellationRequested)
     catch (SynthientException e)
     {
         Console.Error.WriteLine($"stream: {e.Message}");
-        // Pause after a failure so a failing stream doesn't reconnect in a
-        // tight loop.
+        // Avoid reconnecting in a tight loop.
         await Task.Delay(TimeSpan.FromSeconds(2));
     }
 }

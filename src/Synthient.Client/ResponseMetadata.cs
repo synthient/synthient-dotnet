@@ -2,10 +2,7 @@ using System.Globalization;
 
 namespace Synthient;
 
-/// <summary>
-/// Describes an API response. <see cref="SynthientClientOptions.ResponseHook"/> receives one for
-/// every response from the Synthient API, including each retry and page.
-/// </summary>
+/// <summary>Describes an API response, as passed to <see cref="SynthientClientOptions.ResponseHook"/>.</summary>
 public sealed class ResponseMetadata
 {
     /// <summary>Initializes a new instance from a status code and response headers.</summary>
@@ -29,10 +26,7 @@ public sealed class ResponseMetadata
     /// <summary>The rate limit state, or null if the response does not report it.</summary>
     public RateLimit? RateLimit { get; }
 
-    /// <summary>
-    /// The response and content headers, with case-insensitive names. The collection is a read-only
-    /// copy, so a response hook cannot change the headers the client reads.
-    /// </summary>
+    /// <summary>The response and content headers, as a read-only copy with case-insensitive names.</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>> Headers { get; }
 
     internal string? Header(string name) =>

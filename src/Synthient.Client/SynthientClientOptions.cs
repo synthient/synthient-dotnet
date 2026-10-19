@@ -27,11 +27,11 @@ public sealed class SynthientClientOptions
     /// <summary>
     /// How long the client waits on the network before failing with
     /// <see cref="ApiTimeoutException"/>. It bounds each wait for response headers and each read of
-    /// a response body, stream, or download, not the length of a whole call, so long-lived streams
-    /// and large downloads are not cut off. The default is 60 seconds.
-    /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> disables it. Separately, the default
-    /// handler gives up connecting after 10 seconds, which also throws
-    /// <see cref="ApiTimeoutException"/>. Use a <see cref="CancellationToken"/> to bound a whole call.
+    /// a response body, stream, or download, not a whole call, so long-lived streams and large
+    /// downloads are not cut off. The default is 60 seconds, and
+    /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> disables it. The default handler also
+    /// gives up connecting after 10 seconds. Use a <see cref="CancellationToken"/> to bound a whole
+    /// call.
     /// </summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(60);
 
@@ -51,10 +51,9 @@ public sealed class SynthientClientOptions
     /// never disposes it. It must not follow redirects, because a followed export redirect would
     /// send the API key to the storage host, so a <see cref="SocketsHttpHandler"/> or
     /// <see cref="HttpClientHandler"/> with <c>AllowAutoRedirect</c> set is rejected. It should not
-    /// retry requests either: the client retries on its own, and a handler that resends a billed
-    /// lookup can be charged twice. Set <see cref="SocketsHttpHandler.MaxResponseDrainSize"/> to 0
-    /// so that leaving a stream or download early closes its connection, as the client's own
-    /// handler does, instead of reading up to 1 MiB more of it.
+    /// retry either, because a resent billed lookup can be charged twice. Set
+    /// <see cref="SocketsHttpHandler.MaxResponseDrainSize"/> to 0 so that leaving a stream or
+    /// download early closes its connection instead of reading up to 1 MiB more of it.
     /// </summary>
     public HttpMessageHandler? Handler { get; set; }
 }

@@ -5,8 +5,8 @@ namespace Synthient;
 /// <summary>
 /// Builds the IDs of parquet exports. An export ID is <see cref="Latest"/>, a UTC day as
 /// "YYYY-MM-DD", or a UTC hour as "YYYY-MM-DD/H", where a zero-padded hour is also accepted.
-/// <see cref="Export.Id"/> values can be passed as they are. An ID is checked when it is used, and
-/// an invalid one throws <see cref="ArgumentException"/> before any request is sent.
+/// <see cref="Export.Id"/> values can be passed as they are. An invalid ID throws
+/// <see cref="ArgumentException"/> before any request is sent.
 /// </summary>
 public static class ExportId
 {

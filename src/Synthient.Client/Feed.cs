@@ -80,8 +80,7 @@ public sealed class Feed<TEvent>
 
     /// <summary>
     /// Returns a presigned URL for an export's parquet file. The URL is valid for 24 hours and grants
-    /// access without an API key, so treat it as a secret. It is useful for tools that read parquet
-    /// over HTTPS directly.
+    /// access without an API key, so treat it as a secret.
     /// </summary>
     /// <param name="id">The export ID. See <see cref="ExportId"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
@@ -103,10 +102,9 @@ public sealed class Feed<TEvent>
 
     /// <summary>
     /// Opens an export's parquet file for reading. Dispose the returned stream when done. The API
-    /// key is sent only to the Synthient API, never to the storage host that serves the file, and
-    /// exceptions never include the presigned URL. The cancellation token covers opening the file;
-    /// pass a token to each read to bound the rest. The SDK does not verify the file: compare its
-    /// SHA-256 with <see cref="Export.Checksum"/> if needed.
+    /// key is never sent to the storage host, and exceptions never include the presigned URL. Pass
+    /// a token to each read to bound the rest of the transfer. The SDK does not verify the file:
+    /// compare its SHA-256 with <see cref="Export.Checksum"/> if needed.
     /// </summary>
     /// <param name="id">The export ID. See <see cref="ExportId"/>.</param>
     /// <param name="cancellationToken">Cancels opening the file.</param>

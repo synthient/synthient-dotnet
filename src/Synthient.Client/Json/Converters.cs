@@ -5,8 +5,7 @@ using System.Text.Json.Serialization;
 namespace Synthient;
 
 // Reads a Unix timestamp, in milliseconds when it is at least 1e12 and in seconds otherwise, or an
-// RFC 3339 string. Most timestamps are Unix seconds, but some streams send milliseconds and API key
-// creation times are RFC 3339.
+// RFC 3339 string. Some streams send milliseconds, and API key creation times are RFC 3339.
 internal sealed class TimestampConverter : JsonConverter<DateTimeOffset>
 {
     public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
