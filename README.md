@@ -43,7 +43,7 @@
 dotnet add package Synthient.Client
 ```
 
-To use the [gRPC schema fetcher](#grpc-schema), also add its package:
+The [gRPC schema fetcher](#grpc-schema) is a separate package:
 
 ```sh
 dotnet add package Synthient.Client.GrpcSchema
@@ -51,7 +51,7 @@ dotnet add package Synthient.Client.GrpcSchema
 
 ### PackageReference
 
-Add the package to your project file. The second reference is only needed for the gRPC schema fetcher:
+The second reference is only needed for the gRPC schema fetcher:
 
 ```xml
 <ItemGroup>
@@ -62,17 +62,19 @@ Add the package to your project file. The second reference is only needed for th
 
 ## Requirements
 
-.NET 8 or later. `Synthient.Client` targets net8.0 and net10.0, depends only on System.Text.Json on net8.0, and supports trimming and Native AOT. `Synthient.Client.GrpcSchema` also depends on Grpc.Net.Client, Grpc.Reflection, and Google.Protobuf.
+.NET 8 or later. `Synthient.Client` targets net8.0 and net10.0, depends only on System.Text.Json on net8.0, and supports trimming and Native AOT.
 
 ## API Keys
 
-Every request to the HTTP API needs a Synthient API key. Keys are issued from the Synthient dashboard; if you don't have one yet, [contact us](mailto:contact@synthient.com). Each key carries scopes that decide what it can call. `BASIC` covers the lookups and `GetAccountAsync`, and each feed has one scope for its real-time stream and one for its exports, listed under [Feeds](#feeds). See [Authentication](https://docs.synthient.com/authentication) for how scopes work.
+Every request needs a Synthient API key. Keys are issued from the Synthient dashboard; if you don't have one, [contact us](mailto:contact@synthient.com). A key's scopes decide what it can call: `BASIC` covers the lookups and `GetAccountAsync`, and each feed has its own scopes, listed under [Feeds](#feeds).
 
-If a request fails even though you are sending a key, it is usually one of these:
+If a request fails even though you are sending a key:
 
-- **401 Unauthorized**: the key is malformed, unknown, or revoked. Check that it was loaded from the environment and isn't truncated.
-- **402 Payment Required**: the team is out of lookup credits. `GetAccountAsync` reports the remaining balance and when it resets.
-- **403 Forbidden**: the key lacks the scope for that endpoint or feed. `GetAccountAsync` lists the key's scopes.
+- **401 Unauthorized**: the key is malformed, unknown, or revoked.
+- **402 Payment Required**: the team is out of lookup credits.
+- **403 Forbidden**: the key lacks the scope for that endpoint or feed.
+
+`GetAccountAsync` shows the key's scopes and the team's remaining credits.
 
 ## Authentication
 
@@ -82,25 +84,25 @@ This SDK supports the following security scheme:
 | -------- | ------- | ------------------ | -------------------- |
 | `ApiKey` | API key | `x-api-key` header | `SYNTHIENT_API_KEY`  |
 
-The parameterless constructor reads the key from the `SYNTHIENT_API_KEY` environment variable:
+The parameterless constructor reads the key from `SYNTHIENT_API_KEY`:
 
 ```csharp
 using var client = new SynthientClient();
 ```
 
-To pass the key yourself, for example from your configuration or a secret manager, use the constructor that takes it, or set `ApiKey` on `SynthientClientOptions`:
+To pass the key yourself, such as from a secret manager, use the constructor that takes it, or set `ApiKey` on `SynthientClientOptions`:
 
 ```csharp
 using var client = new SynthientClient(apiKey);
 ```
 
-A missing or empty key throws `ArgumentException`. The constructor makes no network calls, so an invalid key shows up as a 401 on the first request. The key is sent only to the Synthient API, never to the storage host that serves export downloads.
+The constructor makes no network calls. To check a key, call `GetAccountAsync`, which costs no credits.
 
 ## SDK Example Usage
 
 ### Look up an IP address
 
-Get the network, location, and risk intelligence for an IPv4 or IPv6 address. Each lookup costs one credit, and failed lookups are free.
+Get the network, location, and risk intelligence for an IPv4 or IPv6 address. Each lookup costs one credit; failed lookups are free.
 
 ```csharp
 using System.Net;
@@ -115,11 +117,11 @@ if (info.Intelligence is { } intelligence)
 }
 ```
 
-`Network`, `Location`, and `Intelligence` are null when the API has no data for that section, so check them before reading their properties. A client is safe for concurrent use and pools its connections, so create one, reuse it for the life of your application, and dispose it when you are done. The examples below reuse `client`. Runnable programs are in [examples](https://github.com/synthient/synthient-dotnet/tree/main/examples), for example `dotnet run examples/lookup-ip.cs 8.8.8.8` from the repository root, which needs a .NET 10 SDK, 10.0.401 or later (pinned in global.json).
+`Network`, `Location`, and `Intelligence` are null when the API has no data for them. A client is safe for concurrent use and pools its connections, so reuse one for the life of your application and dispose it when you are done. The examples below reuse `client`, and runnable programs are in [examples](https://github.com/synthient/synthient-dotnet/tree/main/examples).
 
 ### Look up many IP addresses
 
-Look up as many as 1000 addresses in one request, billed at `ceil(n * 0.9)` credits for the `n` distinct addresses looked up. Private and reserved addresses are skipped and duplicates collapse into one result, so match results by `IP` rather than by position.
+Look up as many as 1000 addresses in one request for `ceil(n * 0.9)` credits. Private and reserved addresses are skipped and duplicates are merged, so match results by `IP`.
 
 ```csharp
 var results = await client.LookupIPsAsync([IPAddress.Parse("8.8.8.8"), IPAddress.Parse("1.1.1.1")]);
@@ -134,7 +136,7 @@ foreach (var result in results)
 
 ### Look up a domain
 
-Get the honeypot traffic observed for a domain, with its most recent events. A domain that has never been observed returns an inactive status and zero counts rather than an error. Each lookup costs one credit.
+Get the honeypot traffic observed for a domain and its most recent events. Each lookup costs one credit.
 
 ```csharp
 var domain = await client.LookupDomainAsync("example.com", limit: 10);
@@ -147,7 +149,7 @@ foreach (var recent in domain.RecentEvents)
 
 ### Check your account
 
-Get the account that owns the API key, with the key's scopes and the team's remaining lookup credits. It costs no credits.
+Get the key's account, scopes, and remaining lookup credits, at no cost.
 
 ```csharp
 var account = await client.GetAccountAsync();
@@ -163,7 +165,7 @@ Every public type and member has XML documentation, which your editor shows as y
 - `LookupIPAsync` - Look up an IPv4 or IPv6 address
 - `LookupIPsAsync` - Look up as many as 1000 addresses in one request
 - `LookupDomainAsync` - Look up the honeypot traffic observed for a domain
-- `GetAccountAsync` - Get the account that owns the API key, the key's scopes, and the team's remaining lookup credits
+- `GetAccountAsync` - Get the key's account, scopes, and remaining lookup credits
 - `CheckHealthAsync` - Check that the API and its dependencies are healthy
 
 ### Feeds
@@ -190,7 +192,7 @@ Each feed is a property of the client, such as `client.Proxies`, and has the sam
 
 ## Streaming
 
-`StreamAsync` returns an `IAsyncEnumerable` of a feed's real-time events. Each `await foreach` over it opens a new connection, and leaving the loop closes it. The server keeps a stream open for up to 30 minutes and then closes it, which ends the loop without an exception. The API has no resume cursor, so loop again to reconnect:
+`StreamAsync` returns an `IAsyncEnumerable` of a feed's real-time events. Each `await foreach` opens a connection, and leaving the loop closes it:
 
 ```csharp
 while (!cancellationToken.IsCancellationRequested)
@@ -205,18 +207,20 @@ while (!cancellationToken.IsCancellationRequested)
     catch (SynthientException e) when (e is not ApiException { StatusCode: 401 or 403 })
     {
         Console.Error.WriteLine($"proxy stream: {e.Message}");
-        // Pause after a failure so a failing stream doesn't reconnect in a
-        // tight loop.
+        // Avoid reconnecting in a tight loop.
         await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
     }
 }
 ```
 
-A 401 or 403 is not caught, so its `ApiException` ends the loop and reaches your code, because reconnecting can't fix a rejected key or a missing scope. Other failures throw from the `await foreach` and are caught: an `ApiException` for any other non-success response, an `ApiConnectionException` if the connection fails, or a `SynthientException` for an event the SDK can't decode. After a failure the loop waits 2 seconds before reconnecting, and after the server's routine close it reconnects at once. Cancelling the token throws `OperationCanceledException`, which ends the loop. A 429 `ApiException` without `RetryAfter` means the key already has too many open streams.
+- The server closes each stream after up to 30 minutes. That ends the `await foreach` without an exception, and the outer loop reconnects at once.
+- A 401 or 403 isn't caught, so it ends the loop, because reconnecting can't fix a rejected key or a missing scope. Cancelling the token ends it with an `OperationCanceledException`.
+- Any other failure throws a `SynthientException`, and the loop waits 2 seconds before reconnecting.
+- Events sent while disconnected are missed. The API has no resume cursor.
 
 ## Pagination
 
-`ListExportsAsync` returns one page of a feed's exports, newest first:
+`ListExportsAsync` returns one page of a feed's exports, newest first. Pass `page.NextCursor` as `cursor` to get the next page; it is null or empty on the last one.
 
 ```csharp
 var page = await client.Proxies.ListExportsAsync(limit: 50);
@@ -226,7 +230,7 @@ foreach (var export in page.Exports)
 }
 ```
 
-To get the next page, pass `page.NextCursor` as the `cursor` argument. It is null or empty on the last page. `ListAllExportsAsync` does the paging for you. It fetches pages as the loop needs them and stops fetching when you leave the loop:
+`ListAllExportsAsync` fetches the pages for you as the loop needs them:
 
 ```csharp
 await foreach (var export in client.Proxies.ListAllExportsAsync())
@@ -235,11 +239,11 @@ await foreach (var export in client.Proxies.ListAllExportsAsync())
 }
 ```
 
-On the first page, the newest hourly export has the ID `latest`, a moving alias for the freshest export. To keep a stable ID, build it from the export's `Date` and `Hour` with `ExportId.Hourly`, such as `2026-10-14/21`.
+On the first page, the newest hourly export has the ID `latest`, a moving alias for the freshest export. Pass its `Date` and `Hour` to `ExportId.Hourly` for its stable ID, such as `2026-10-14/21`.
 
 ## Downloads
 
-Exports are Parquet files. Identify one by the `Id` of an `Export` from a listing, by `ExportId.Latest` for the freshest one, or by `ExportId.Daily(day)` or `ExportId.Hourly(day, hour)` for a UTC day or hour. An invalid ID throws `ArgumentException` before any request is sent. `DownloadAsync` returns a stream of the file's contents, which you must dispose:
+Exports are Parquet files. `DownloadAsync` returns a stream of a file's contents, which you must dispose:
 
 ```csharp
 await using var body = await client.Proxies.DownloadAsync(ExportId.Latest);
@@ -247,22 +251,24 @@ await using var file = File.Create("proxies.parquet");
 await body.CopyToAsync(file);
 ```
 
-The cancellation token passed to `DownloadAsync` covers opening the file. To bound the rest, pass a token to each read, for example `body.CopyToAsync(file, cancellationToken)`.
-
-The file comes from a presigned storage URL that is requested without your API key. The SDK does not verify the file, so compare its SHA-256 with `Export.Checksum` or with the checksum that `GetExportMetaAsync` returns. Read the checksum and download the file by the same stable ID, because `ExportId.Latest` can move to a newer export between the two calls. `GetDownloadUrlAsync` returns the presigned URL itself for tools that read Parquet over HTTPS. The URL grants access without a key for 24 hours, so treat it as a secret.
-
-An hourly export is available until its day's daily export is rolled up, shortly after 00:30 UTC the next day. After that, requests for the hour fail with a 400. While a daily export is being rolled up, requests for it fail with a 404 that has `RetryAfter` set.
+- Name an export by its `Id` from a listing, by `ExportId.Latest`, or by `ExportId.Daily(day)` or `ExportId.Hourly(day, hour)` for a UTC day or hour.
+- The token passed to `DownloadAsync` covers only opening the file. To bound the rest, pass a token to each read, such as `body.CopyToAsync(file, cancellationToken)`.
+- `GetExportMetaAsync` returns the file's SHA-256 checksum. Use a fixed ID for both calls, because `latest` can move between them.
+- `GetDownloadUrlAsync` returns a presigned URL that works without a key for 24 hours, so treat it as a secret. Your API key is never sent to the storage host.
+- Hourly exports roll into the daily export shortly after 00:30 UTC the next day. After that, the hour returns a 400.
 
 ## Retries
 
-The client retries a failed request up to twice by default, backing off exponentially with jitter and honoring `Retry-After`:
+The client retries a failed request up to twice, backing off exponentially with jitter and honoring `Retry-After`:
 
-- Account and feed requests are retried on 500, 502, 503, and 504 responses, on 429 responses that carry `Retry-After`, and when no response arrives because the connection failed (other than a TLS error) or `Timeout` elapsed. A failure after the response has started, such as a body or stream that breaks off or stalls, is not retried, and neither is the file transfer from the storage host in `DownloadAsync`.
-- Billed lookups (`LookupIPAsync`, `LookupIPsAsync`, and `LookupDomainAsync`) are retried only on 429 responses that carry `Retry-After`, which the rate limiter returns before doing any work, so a lookup is never charged twice. `CheckHealthAsync` is retried the same way, so an unhealthy API is reported at once.
+| Requests                              | Retried on                                                                                   |
+| ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Account and feed requests             | 500, 502, 503, and 504, most connection failures and timeouts, and 429 with `Retry-After`    |
+| Billed lookups and `CheckHealthAsync` | Only 429 with `Retry-After`, which comes before any work, so a lookup is never charged twice |
 
-A 429 without `Retry-After` means the key's monthly request budget is spent or it has too many open streams, so it is not retried. A `Retry-After` longer than a minute is not waited out; the call throws an `ApiException` with `RetryAfter` set instead.
+A 429 without `Retry-After` means the monthly request budget is spent or too many streams are open, so it is thrown at once. Downloads from the storage host are never retried.
 
-To change the number of retries, set `MaxRetries` when creating the client. Zero disables retries:
+Set the number of retries with `MaxRetries`. Zero disables them:
 
 ```csharp
 using var client = new SynthientClient(new SynthientClientOptions { MaxRetries = 4 });
@@ -270,37 +276,37 @@ using var client = new SynthientClient(new SynthientClientOptions { MaxRetries =
 
 ## Timeouts
 
-`Timeout` bounds each wait on the network: each wait for response headers, and each read of a response body, stream, or download. It does not bound a whole call, so long-lived streams and large downloads are not cut off, but a stream that sends nothing for that long fails. When it elapses, the call throws `ApiTimeoutException`. An account or feed request whose response headers time out is retried first, so with the defaults it can take about three minutes to fail. The default is 60 seconds, and `Timeout.InfiniteTimeSpan` disables it:
+`Timeout` bounds each wait on the network, such as for response headers or the next read of a stream, but not a whole call, so streams and downloads are not cut off. It defaults to 60 seconds, and `Timeout.InfiniteTimeSpan` disables it:
 
 ```csharp
 using var client = new SynthientClient(new SynthientClientOptions { Timeout = TimeSpan.FromSeconds(30) });
 ```
 
-To bound a whole call, pass a `CancellationToken`. Cancelling it throws `OperationCanceledException`, not `ApiTimeoutException`:
+When it elapses, the call throws `ApiTimeoutException`, so a stream that sends nothing for that long fails. The default handler also gives up connecting after 10 seconds.
+
+To bound a whole call, pass a `CancellationToken`. Cancelling it throws `OperationCanceledException`:
 
 ```csharp
 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 var info = await client.LookupIPAsync(IPAddress.Parse("8.8.8.8"), cancellation.Token);
 ```
 
-The default handler also gives up connecting after 10 seconds, which also throws `ApiTimeoutException` and is retried like any other timeout.
-
 ## Error Handling
 
-A request that fails with an HTTP error status throws an `ApiException`. It has the following properties:
+A request that fails with an error status throws an `ApiException`:
 
-| Property     | Type                                                 | Description                                                                                 |
-| ------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `StatusCode` | `int`                                                | HTTP response status code, such as `404`                                                    |
-| `Type`       | `string?`                                            | URI identifying the problem type, such as `https://docs.synthient.com/errors/validation-failed` |
-| `Title`      | `string?`                                            | Short summary of the problem type                                                           |
-| `Detail`     | `string?`                                            | Explanation of this occurrence. For a plain-text error, the response body                   |
-| `Errors`     | `IReadOnlyDictionary<string, IReadOnlyList<string>>` | Validation messages by request field                                                        |
-| `RequestId`  | `string?`                                            | Request ID to give Synthient support                                                        |
-| `RetryAfter` | `TimeSpan?`                                          | How long the server asked you to wait before retrying, or null                              |
-| `Headers`    | `IReadOnlyDictionary<string, IReadOnlyList<string>>` | The response headers, with case-insensitive names                                          |
+| Property     | Type                                                 | Description                                    |
+| ------------ | ---------------------------------------------------- | ---------------------------------------------- |
+| `StatusCode` | `int`                                                | HTTP status code, such as `404`                |
+| `Type`       | `string?`                                            | URI identifying the problem type               |
+| `Title`      | `string?`                                            | Short summary of the problem type              |
+| `Detail`     | `string?`                                            | Explanation of this occurrence                 |
+| `Errors`     | `IReadOnlyDictionary<string, IReadOnlyList<string>>` | Validation messages by request field           |
+| `RequestId`  | `string?`                                            | Request ID to give Synthient support           |
+| `RetryAfter` | `TimeSpan?`                                          | How long the server asked you to wait, or null |
+| `Headers`    | `IReadOnlyDictionary<string, IReadOnlyList<string>>` | Response headers, with case-insensitive names  |
 
-`Message` holds only the status, such as `403 Forbidden`, so it is safe to log. The other properties hold untrusted server data that can be sensitive, so log them deliberately.
+`Message` holds only the status, such as `403 Forbidden`, so it is safe to log. The properties hold untrusted server data.
 
 ### Example
 
@@ -329,32 +335,32 @@ catch (ApiException e)
 
 ### Error Types
 
-- `SynthientException`: the base type of the SDK's exceptions. It is thrown directly when the API returns a response the SDK can't use, such as a malformed body.
-- `ApiException`: the API returned an error status. An error status from the storage host during `DownloadAsync` also throws one, carrying only `StatusCode` so that the presigned URL never appears in it.
-- `ApiConnectionException`: no response arrived, because the connection failed or was closed, or reading the response failed. The server may still have processed the request.
-- `ApiTimeoutException`: an `ApiConnectionException` thrown when `Timeout` elapses while waiting on the network, or when the default handler's 10-second connect timeout elapses.
+- `SynthientException`: the base type of the SDK's exceptions, also thrown for a response the SDK can't decode.
+- `ApiException`: the API, or the storage host during `DownloadAsync`, returned an error status.
+- `ApiConnectionException`: no response arrived, or reading the response failed.
+- `ApiTimeoutException`: an `ApiConnectionException` thrown when `Timeout` or the 10-second connect timeout elapses.
 - `OperationCanceledException`: the call's `CancellationToken` was cancelled.
-- `ArgumentException`: an argument or option is invalid, such as a missing API key, more than 1000 addresses, or an invalid export ID. It is thrown before any request is sent.
+- `ArgumentException`: a missing API key or another invalid argument or option, rejected before any request is sent.
 - `ObjectDisposedException`: the client was disposed.
 
 #### Status codes
 
-| Status | Meaning                                                                                                            |
-| ------ | ------------------------------------------------------------------------------------------------------------------ |
-| 400    | The request is invalid, such as asking for an hourly export that has been rolled up                                |
-| 401    | The API key is malformed, unknown, or revoked                                                                      |
-| 402    | The team is out of lookup credits                                                                                  |
-| 403    | The key lacks the scope for the endpoint or feed                                                                   |
-| 404    | The export does not exist, or a daily export is still being rolled up and `RetryAfter` is set                      |
-| 422    | The input is invalid, such as a private or reserved address, a malformed domain, or a batch with no usable address |
-| 429    | With `RetryAfter`, the rate limit was hit. Without it, the request budget is spent or too many streams are open    |
-| 5xx    | The server failed. Account and feed requests are retried on 500, 502, 503, and 504                                 |
+| Status | Meaning                                                                                         |
+| ------ | ----------------------------------------------------------------------------------------------- |
+| 400    | The request is invalid, such as an hourly export that was rolled up                             |
+| 401    | The API key is malformed, unknown, or revoked                                                   |
+| 402    | The team is out of lookup credits                                                               |
+| 403    | The key lacks the scope for the endpoint or feed                                                |
+| 404    | The export doesn't exist, or a daily export is still rolling up (`RetryAfter` is set)           |
+| 422    | The input is invalid, such as a private address or a malformed domain                           |
+| 429    | Rate limited if `RetryAfter` is set; otherwise the budget is spent or too many streams are open |
+| 5xx    | The server failed                                                                               |
 
 ## Server Selection
 
 ### Override Server URL Per-Client
 
-The default server is `https://api.synthient.com/api/v4`. To send requests elsewhere, such as through a gateway or to a mock server in tests, set `BaseAddress` when creating the client. The address includes the version path:
+The default server is `https://api.synthient.com/api/v4`. Set `BaseAddress` to send requests elsewhere, such as a mock server in tests:
 
 ```csharp
 using var client = new SynthientClient(new SynthientClientOptions
@@ -365,7 +371,7 @@ using var client = new SynthientClient(new SynthientClientOptions
 
 ## Custom HTTP Client
 
-The client sends requests through an `HttpMessageHandler`. Pass your own as `Handler`, for example to route requests through a proxy:
+The client takes an `HttpMessageHandler`, not an `HttpClient`. Pass your own as `Handler`, for example to use a proxy:
 
 ```csharp
 var handler = new SocketsHttpHandler
@@ -377,13 +383,16 @@ var handler = new SocketsHttpHandler
 using var client = new SynthientClient(new SynthientClientOptions { Handler = handler });
 ```
 
-The client takes a handler rather than an `HttpClient` so that it can check how the handler treats redirects. A followed export redirect would send the API key to the storage host, so a `SocketsHttpHandler` or `HttpClientHandler` with `AllowAutoRedirect` set is rejected with `ArgumentException`. The handler should not retry requests either: the client retries on its own, and a handler that resends a billed lookup can be charged twice. Setting `MaxResponseDrainSize` to 0 makes leaving a stream or download early close its connection, as the client's own handler does. The client never disposes your handler.
+- Turn off `AllowAutoRedirect`, because a followed export redirect would send the API key to the storage host. A handler with it set is rejected with `ArgumentException`.
+- The handler must not retry requests, so a billed lookup is never sent twice.
+- Set `MaxResponseDrainSize` to 0 so that leaving a stream or download early closes its connection.
+- The client never disposes your handler.
 
-To identify your application, set `UserAgent = "my-app/1.2"` to append a product token to the `User-Agent` header.
+Set `UserAgent = "my-app/1.2"` to add your product token to the `User-Agent` header.
 
 ## Debugging
 
-`ResponseHook` is called after every response from the Synthient API, including error responses and each retry, page, and stream handshake. It receives a `ResponseMetadata` with the status code, the request ID to give Synthient support, the operation's rate limit, and a copy of the response headers:
+`ResponseHook` is called after every API response, including errors, retries, pages, and stream handshakes, with the status, request ID, rate limit, and headers:
 
 ```csharp
 using var client = new SynthientClient(new SynthientClientOptions
@@ -399,14 +408,14 @@ using var client = new SynthientClient(new SynthientClientOptions
 });
 ```
 
-The hook runs synchronously and must be safe to call concurrently. If it throws, the call fails with its exception. Export downloads from storage are not passed to it.
+The hook must be safe to call concurrently. If it throws, the call fails with its exception.
 
 > [!WARNING]
 > Response headers can contain secrets, such as presigned download URLs. Avoid logging `metadata.Headers` in production.
 
 ## gRPC Schema
 
-The `Synthient.Client.GrpcSchema` package fetches the protobuf schema of the [Synthient gRPC API](https://docs.synthient.com/grpc) through gRPC server reflection:
+The `Synthient.Client.GrpcSchema` package fetches the protobuf schema of the [Synthient gRPC API](https://docs.synthient.com/grpc) through server reflection:
 
 ```csharp
 try
@@ -424,13 +433,13 @@ catch (GrpcSchemaException e)
 }
 ```
 
-`schema.DescriptorSet` is a `Google.Protobuf.Reflection.FileDescriptorSet` with each file after the files it imports. `GrpcSchema.Explain` describes common gRPC errors in plain language, and returns null for the rest. `GrpcSchemaOptions` sets the endpoint, the symbols to resolve, and the deadline for the whole fetch, which is 30 seconds by default.
+`schema.DescriptorSet` is a `Google.Protobuf.Reflection.FileDescriptorSet`. `GrpcSchema.Explain` describes common gRPC errors in plain language.
 
 # Development
 
 ## Maturity
 
-This SDK follows [Semantic Versioning](https://semver.org). Breaking changes to its public API ship only in a new major version. `Synthient.Client` and `Synthient.Client.GrpcSchema` are released together with the same version.
+This SDK follows [Semantic Versioning](https://semver.org). Breaking changes ship only in a new major version. `Synthient.Client` and `Synthient.Client.GrpcSchema` are released together with the same version.
 
 ## Contributions
 
