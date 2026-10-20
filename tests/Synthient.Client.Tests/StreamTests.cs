@@ -307,7 +307,6 @@ public sealed class StreamTests
     }
 }
 
-// Returns at most chunk bytes per read, so tests can split a body at every boundary.
 internal sealed class ChunkedStream(byte[] data, int chunk) : MemoryStream(data)
 {
     public override int Read(byte[] buffer, int offset, int count) => base.Read(buffer, offset, Math.Min(count, chunk));

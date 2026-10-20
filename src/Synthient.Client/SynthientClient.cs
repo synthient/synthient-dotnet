@@ -43,7 +43,6 @@ public sealed class SynthientClient : IDisposable
     }
 
     /// <summary>Creates a client that authenticates with an API key.</summary>
-    /// <param name="apiKey">The API key.</param>
     /// <exception cref="ArgumentException">The key is empty.</exception>
     public SynthientClient(string apiKey)
         : this(new SynthientClientOptions { ApiKey = apiKey ?? throw new ArgumentNullException(nameof(apiKey)) })
@@ -100,8 +99,6 @@ public sealed class SynthientClient : IDisposable
     /// Returns the account that owns the API key, including its scopes and remaining lookup
     /// credits. It costs no credits.
     /// </summary>
-    /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The account.</returns>
     public Task<Account> GetAccountAsync(CancellationToken cancellationToken = default) =>
         Transport.GetJsonAsync<Account>(new ApiRequest(HttpMethod.Get, "/account/me", RetryPolicy.Transient), cancellationToken);
 
@@ -110,8 +107,6 @@ public sealed class SynthientClient : IDisposable
     /// <see cref="ApiException"/>, such as a 503 when a dependency is down or the edge's 401 for a
     /// malformed key. It costs no credits.
     /// </summary>
-    /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>A task that completes when the API reports it is healthy.</returns>
     public async Task CheckHealthAsync(CancellationToken cancellationToken = default)
     {
         // An unhealthy 503 is reported rather than retried.
@@ -129,9 +124,6 @@ public sealed class SynthientClient : IDisposable
     /// 422 <see cref="ApiException"/>. Each lookup costs one credit, and failed lookups are not
     /// billed.
     /// </summary>
-    /// <param name="ip">The address.</param>
-    /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The intelligence for the address.</returns>
     /// <exception cref="ArgumentException">The address is an IPv6 address with a scope ID.</exception>
     public Task<IPInfo> LookupIPAsync(IPAddress ip, CancellationToken cancellationToken = default)
     {
@@ -151,9 +143,6 @@ public sealed class SynthientClient : IDisposable
     /// it looks up, and nothing if the account cannot cover the whole batch. An empty batch returns
     /// no results without a request.
     /// </summary>
-    /// <param name="ips">The addresses.</param>
-    /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The intelligence for each address the API looked up.</returns>
     /// <exception cref="ArgumentException">
     /// There are more than 1000 addresses, or one is null or an IPv6 address with a scope ID.
     /// </exception>
@@ -194,7 +183,6 @@ public sealed class SynthientClient : IDisposable
     /// <param name="domain">The domain.</param>
     /// <param name="limit">Caps the number of recent events returned, from 1 to 1000. Null uses the API default of 50.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The traffic observed for the domain.</returns>
     /// <exception cref="ArgumentException">The domain is empty, ".", or "..".</exception>
     public Task<DomainInfo> LookupDomainAsync(string domain, int? limit = null, CancellationToken cancellationToken = default)
     {

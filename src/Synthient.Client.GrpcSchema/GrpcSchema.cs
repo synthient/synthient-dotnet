@@ -22,7 +22,6 @@ public static class GrpcSchema
     /// <param name="apiKey">The API key, sent as x-api-key metadata when it is not empty.</param>
     /// <param name="options">The endpoint and symbols to fetch, or null for every service of <see cref="DefaultEndpoint"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The schema.</returns>
     /// <exception cref="GrpcSchemaException">Reflection failed. <see cref="Explain"/> describes common causes.</exception>
     public static async Task<GrpcSchemaResult> FetchAsync(string? apiKey, GrpcSchemaOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -92,8 +91,6 @@ public static class GrpcSchema
     /// Returns a human-readable explanation of a common gRPC failure from <see cref="FetchAsync"/>,
     /// or null if there is none.
     /// </summary>
-    /// <param name="exception">The exception.</param>
-    /// <returns>The explanation, or null.</returns>
     public static string? Explain(Exception exception)
     {
         StatusCode? code = exception switch
@@ -305,9 +302,6 @@ public sealed record GrpcSchemaResult(string Endpoint, IReadOnlyList<string> Sym
 public sealed class GrpcSchemaException : SynthientException
 {
     /// <summary>Initializes a new instance with a gRPC status, a message, and the exception that caused it.</summary>
-    /// <param name="statusCode">The gRPC status code.</param>
-    /// <param name="message">The error message.</param>
-    /// <param name="innerException">The exception that caused this one.</param>
     public GrpcSchemaException(StatusCode statusCode, string message, Exception? innerException = null)
         : base(message, innerException)
     {

@@ -9,7 +9,8 @@ namespace Synthient;
 
 internal enum RetryPolicy
 {
-    // Retries 5xx statuses, connection failures, timeouts, and 429s with Retry-After.
+    // Retries 500, 502, 503, and 504 responses, connection failures other than TLS errors, timeouts,
+    // and 429s with Retry-After.
     Transient,
 
     // Retries only 429s with Retry-After, which the rate limiter returns before doing any work, so
@@ -185,7 +186,6 @@ internal sealed class Transport : IDisposable
         return null;
     }
 
-    // Resolves a redirect target and rejects anything but https, or http when the redirect came from http.
     internal static Uri ResolveRedirect(Uri from, string? location)
     {
         if (string.IsNullOrWhiteSpace(location) || !Uri.TryCreate(from, location, out var target))
@@ -215,8 +215,8 @@ internal sealed class Transport : IDisposable
         return Json.Deserialize(body, Json.TypeInfo<T>());
     }
 
-    // Fetches an export from storage, following redirects itself so that each hop is checked. Only
-    // the User-Agent is sent, never the API key.
+    // Follows redirects itself so that each hop is checked. Only the User-Agent is sent, never the
+    // API key.
     internal async Task<Stream> DownloadAsync(Uri location, CancellationToken cancellationToken)
     {
         var url = location;
@@ -260,8 +260,6 @@ internal sealed class Transport : IDisposable
         }
     }
 
-    // Opens a response body whose reads fail with ApiTimeoutException if they stall for longer than
-    // the timeout. Disposing the body disposes the response.
     internal async Task<Stream> OpenBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var content = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -285,8 +283,7 @@ internal sealed class Transport : IDisposable
         }
     }
 
-    // Sends an API request, retrying as its policy allows, and returns the final response whatever
-    // its status. The caller owns the response and checks its status.
+    // Returns the final response whatever its status. The caller disposes it and checks the status.
     internal async Task<ApiResponse> SendAsync(ApiRequest request, CancellationToken cancellationToken)
     {
         var uri = new Uri(_baseAddress + request.Path);
@@ -378,7 +375,6 @@ internal sealed class Transport : IDisposable
         };
     }
 
-    // Waits before a retry. Disposing the client ends the wait.
     private async Task WaitAsync(TimeSpan delay, CancellationToken cancellationToken)
     {
         using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposing.Token);
@@ -394,8 +390,6 @@ internal sealed class Transport : IDisposable
 
     private static bool IsPrintableAscii(string value) => !value.AsSpan().ContainsAnyExceptInRange(' ', '~');
 
-    // Reports a cancelled network wait as the caller's cancellation when their token fired, and as a
-    // timeout otherwise.
     private static Exception CanceledOrTimedOut(OperationCanceledException e, string message, CancellationToken cancellationToken) =>
         cancellationToken.IsCancellationRequested
             ? new OperationCanceledException(e.Message, e, cancellationToken)
@@ -434,7 +428,6 @@ internal sealed class Transport : IDisposable
     private static string? StringProperty(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
-    // Returns the validation errors of a problem, or none if they are missing or have the wrong shape.
     private static FrozenDictionary<string, IReadOnlyList<string>> ParseErrors(JsonElement problem)
     {
         var none = FrozenDictionary<string, IReadOnlyList<string>>.Empty;
@@ -503,7 +496,6 @@ internal sealed class Transport : IDisposable
         }
     }
 
-    // Reads a whole body, or returns null if it is longer than limit bytes.
     private async Task<ArraySegment<byte>?> ReadUpToAsync(HttpResponseMessage response, int limit, CancellationToken cancellationToken)
     {
         var stream = await OpenBodyAsync(response, cancellationToken).ConfigureAwait(false);

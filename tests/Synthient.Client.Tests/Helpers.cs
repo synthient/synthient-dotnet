@@ -107,7 +107,6 @@ internal sealed record RecordedRequest(HttpMethod Method, Uri Uri, IReadOnlyDict
     public string PathAndQuery => Uri.PathAndQuery;
 }
 
-// A fake transport that records each request and answers it with a delegate.
 internal sealed class StubHandler(Func<RecordedRequest, HttpResponseMessage> respond) : HttpMessageHandler
 {
     public StubHandler(params HttpResponseMessage[] responses)

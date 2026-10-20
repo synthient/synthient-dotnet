@@ -24,7 +24,6 @@ public sealed class GrpcSchemaTests : IAsyncLifetime
 
     private string Address { get; set; } = "";
 
-    // Starts a loopback gRPC server with reflection and the health service.
     public async ValueTask InitializeAsync()
     {
         var builder = WebApplication.CreateSlimBuilder();

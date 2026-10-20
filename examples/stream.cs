@@ -37,7 +37,7 @@ while (!stop.IsCancellationRequested)
     catch (SynthientException e)
     {
         Console.Error.WriteLine($"stream: {e.Message}");
-        // Avoid reconnecting in a tight loop.
+        // Stream connections are limited to 30 per minute per team.
         await Task.Delay(TimeSpan.FromSeconds(2));
     }
 }

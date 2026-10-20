@@ -1,6 +1,5 @@
 namespace Synthient;
 
-// A response body. It owns the response, and each read is bounded by the client's timeout.
 internal sealed class ResponseStream(Transport transport, HttpResponseMessage response, Stream content) : Stream
 {
     public override bool CanRead => true;

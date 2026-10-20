@@ -1,6 +1,6 @@
 namespace Synthient;
 
-// Splits a newline-delimited JSON body into lines, skipping the blank keepalive lines the API sends.
+// Skips the blank keepalive lines the API sends.
 internal sealed class NdjsonReader(Stream stream)
 {
     internal const int MaxLineSize = 16 << 20;
@@ -10,8 +10,7 @@ internal sealed class NdjsonReader(Stream stream)
     private int _end;
     private bool _eof;
 
-    // Returns the next non-blank line without surrounding whitespace, or null at the end of the
-    // body. The line is only valid until the next call.
+    // The line points into the read buffer, so it is only valid until the next call.
     public async ValueTask<ReadOnlyMemory<byte>?> ReadLineAsync(CancellationToken cancellationToken)
     {
         while (true)

@@ -36,7 +36,6 @@ public sealed class Feed<TEvent>
     /// <param name="limit">The page size, from 1 to 500. Null uses the API default of 100.</param>
     /// <param name="cursor">Continues a listing from a previous page's <see cref="ExportPage.NextCursor"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The page.</returns>
     public Task<ExportPage> ListExportsAsync(int? limit = null, string? cursor = null, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(limit ?? 1, 1, nameof(limit));
@@ -61,7 +60,6 @@ public sealed class Feed<TEvent>
     /// <param name="limit">The page size, from 1 to 500. Null uses the API default of 100.</param>
     /// <param name="cursor">Starts the listing from a previous page's <see cref="ExportPage.NextCursor"/>.</param>
     /// <param name="cancellationToken">Cancels the enumeration.</param>
-    /// <returns>The exports.</returns>
     public IAsyncEnumerable<Export> ListAllExportsAsync(int? limit = null, string? cursor = null, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(limit ?? 1, 1, nameof(limit));
@@ -71,7 +69,6 @@ public sealed class Feed<TEvent>
     /// <summary>Returns the checksum, size, row count, and parquet schema of an export. It costs no credits.</summary>
     /// <param name="id">The export ID. See <see cref="ExportId"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The export's metadata.</returns>
     public Task<ExportMeta> GetExportMetaAsync(string id, CancellationToken cancellationToken = default)
     {
         var path = _path + "/export/" + ExportPath(id) + "/meta";
@@ -84,7 +81,6 @@ public sealed class Feed<TEvent>
     /// </summary>
     /// <param name="id">The export ID. See <see cref="ExportId"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The presigned URL.</returns>
     public async Task<Uri> GetDownloadUrlAsync(string id, CancellationToken cancellationToken = default)
     {
         var request = new ApiRequest(HttpMethod.Get, _path + "/export/" + ExportPath(id), RetryPolicy.Transient);
@@ -108,7 +104,6 @@ public sealed class Feed<TEvent>
     /// </summary>
     /// <param name="id">The export ID. See <see cref="ExportId"/>.</param>
     /// <param name="cancellationToken">Cancels opening the file.</param>
-    /// <returns>The file contents.</returns>
     public async Task<Stream> DownloadAsync(string id, CancellationToken cancellationToken = default)
     {
         var location = await GetDownloadUrlAsync(id, cancellationToken).ConfigureAwait(false);
@@ -121,8 +116,6 @@ public sealed class Feed<TEvent>
     /// between connections are not replayed, so reconnect promptly to keep up. Leaving the loop
     /// closes the connection.
     /// </summary>
-    /// <param name="cancellationToken">Cancels the enumeration.</param>
-    /// <returns>The events.</returns>
     public async IAsyncEnumerable<TEvent> StreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var request = new ApiRequest(HttpMethod.Get, _path + "/stream", RetryPolicy.Transient, Accept: "application/x-ndjson");
@@ -170,7 +163,7 @@ public sealed class Feed<TEvent>
         }
     }
 
-    // Returns an export ID as a URL path, with the hour unpadded.
+    // Writes the hour unpadded, as the API does in export IDs and download paths.
     private static string ExportPath(string id)
     {
         ArgumentNullException.ThrowIfNull(id);

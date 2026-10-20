@@ -181,7 +181,7 @@ public sealed class ConformanceTests
         }
     }
 
-    // Returns the spec path template a request path matches, preferring the most literal segments.
+    // A daily meta path also matches the {date}/{hour} template, so the most literal template wins.
     private static string TemplateOf(string path, List<(string Method, string Template)> operations) => operations
         .Select(operation => operation.Template)
         .Where(template => Regex.IsMatch(path, "^" + Regex.Replace(template, @"\{[^}]+\}", "[^/]+") + "$"))

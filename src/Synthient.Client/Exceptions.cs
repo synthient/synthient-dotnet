@@ -9,15 +9,12 @@ namespace Synthient;
 public class SynthientException : Exception
 {
     /// <summary>Initializes a new instance with a message.</summary>
-    /// <param name="message">The error message.</param>
     public SynthientException(string message)
         : base(message)
     {
     }
 
     /// <summary>Initializes a new instance with a message and the exception that caused it.</summary>
-    /// <param name="message">The error message.</param>
-    /// <param name="innerException">The exception that caused this one.</param>
     public SynthientException(string message, Exception? innerException)
         : base(message, innerException)
     {
@@ -111,8 +108,6 @@ public sealed class ApiException : SynthientException
 public class ApiConnectionException : SynthientException
 {
     /// <summary>Initializes a new instance with a message and the exception that caused it.</summary>
-    /// <param name="message">The error message.</param>
-    /// <param name="innerException">The exception that caused this one.</param>
     public ApiConnectionException(string message, Exception? innerException)
         : base(message, innerException)
     {
@@ -127,8 +122,6 @@ public class ApiConnectionException : SynthientException
 public sealed class ApiTimeoutException : ApiConnectionException
 {
     /// <summary>Initializes a new instance with a message and the exception that caused it.</summary>
-    /// <param name="message">The error message.</param>
-    /// <param name="innerException">The exception that caused this one.</param>
     public ApiTimeoutException(string message, Exception? innerException)
         : base(message, innerException)
     {

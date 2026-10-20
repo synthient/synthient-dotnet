@@ -17,14 +17,11 @@ public static class ExportId
     public const string Latest = "latest";
 
     /// <summary>Returns the ID of the daily export for a UTC day.</summary>
-    /// <param name="day">The UTC day.</param>
-    /// <returns>The export ID.</returns>
     public static string Daily(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     /// <summary>Returns the ID of the hourly export for an hour of a UTC day.</summary>
     /// <param name="day">The UTC day.</param>
     /// <param name="hour">The UTC hour, from 0 to 23.</param>
-    /// <returns>The export ID.</returns>
     public static string Hourly(DateOnly day, int hour)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(hour);
