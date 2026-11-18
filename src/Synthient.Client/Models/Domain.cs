@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 namespace Synthient;
 
 /// <summary>The honeypot traffic Synthient has observed for a domain.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class DomainInfo
 {
     /// <summary>The domain that was looked up.</summary>
@@ -59,6 +60,7 @@ public sealed class DomainInfo
 }
 
 /// <summary>Aggregate event counts for a domain.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class DomainStats
 {
     /// <summary>The number of events in the last 24 hours.</summary>
@@ -71,6 +73,7 @@ public sealed class DomainStats
 }
 
 /// <summary>The number of distinct source addresses seen for a domain.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class UniqueIPCounts
 {
     /// <summary>The count for the last 24 hours.</summary>
@@ -87,6 +90,7 @@ public sealed class UniqueIPCounts
 }
 
 /// <summary>The event counts for one day.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class TimeSeriesPoint
 {
     /// <summary>The start of the UTC day.</summary>
@@ -103,6 +107,7 @@ public sealed class TimeSeriesPoint
 }
 
 /// <summary>An autonomous system and its event count.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class AsnCount
 {
     /// <summary>The autonomous system number.</summary>
@@ -115,6 +120,7 @@ public sealed class AsnCount
 }
 
 /// <summary>A subdomain and its event count.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class SubdomainCount
 {
     /// <summary>The targeted subdomain.</summary>
@@ -127,6 +133,7 @@ public sealed class SubdomainCount
 }
 
 /// <summary>A port and its event count.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class PortCount
 {
     /// <summary>The targeted port.</summary>
@@ -139,6 +146,7 @@ public sealed class PortCount
 }
 
 /// <summary>A source country and its counts.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class CountryCount
 {
     /// <summary>The ISO 3166-1 alpha-2 country code.</summary>
@@ -155,6 +163,7 @@ public sealed class CountryCount
 }
 
 /// <summary>The hourly activity pattern of a domain.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class ActivityStats
 {
     /// <summary>A sentence describing how events are spread over the last 30 days. See <see cref="Synthient.Cadence"/>.</summary>
@@ -179,6 +188,7 @@ public sealed class ActivityStats
 }
 
 /// <summary>A single honeypot event for a domain.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public sealed class DomainEvent
 {
     /// <summary>When the event happened.</summary>

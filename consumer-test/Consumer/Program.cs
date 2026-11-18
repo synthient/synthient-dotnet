@@ -31,6 +31,9 @@ await foreach (var proxy in client.Proxies.StreamAsync())
 }
 Check(events.SequenceEqual(["1.1.1.1", "2.2.2.2"]), "stream");
 
+var volume = await client.Geolocation.GetExportVolumeAsync(days: 2);
+Check(volume.Days.Single().SizeBytes == 1874587084 && volume.Days[0].Date == new DateOnly(2026, 11, 17), "dataset");
+
 #if !CORE_ONLY
 using (var listener = new TcpListener(IPAddress.Loopback, 0))
 {
@@ -67,6 +70,7 @@ internal sealed class StubHandler : HttpMessageHandler
         {
             "/api/v4/lookup/ip/8.8.8.8" => (200, """{"ip":"8.8.8.8","intelligence":{"risk_score":12,"categories":[],"behavior":[],"providers":[],"devices":[]}}"""),
             "/api/v4/feeds/proxies/stream" => (200, "{\"ip\":\"1.1.1.1\"}\n\n{\"ip\":\"2.2.2.2\"}\n"),
+            "/api/v4/feeds/geolocation/export/daily" => (200, """{"stream":"geolocation","days":[{"date":"2026-11-17","kind":"daily","snapshots":1,"row_count":27456467,"size_bytes":1874587084}]}"""),
             _ => (403, """{"type":"t","title":"Forbidden","status":403,"detail":"Requires one of: BASIC"}"""),
         };
         return Task.FromResult(new HttpResponseMessage((HttpStatusCode)status)

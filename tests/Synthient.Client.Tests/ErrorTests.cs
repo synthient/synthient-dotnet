@@ -168,7 +168,7 @@ public sealed class ErrorTests
             ("X-Request-Id", "secret-request")));
         using var client = Fixtures.StubClient(handler, o => o.ApiKey = "secret-key");
 
-        var error = await Assert.ThrowsAsync<ApiException>(() => client.LookupDomainAsync("secret-domain.example", cancellationToken: Token));
+        var error = await Assert.ThrowsAsync<ApiException>(() => client.GetAccountAsync(Token));
 
         Assert.Equal("403 Forbidden", error.Message);
         Assert.DoesNotContain("secret", error.ToString(), StringComparison.Ordinal);

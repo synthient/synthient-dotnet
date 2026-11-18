@@ -19,7 +19,10 @@ public static class GrpcSchema
     /// that define <see cref="GrpcSchemaOptions.Symbols"/>, or every listed service when there are
     /// none, along with all of their imports.
     /// </summary>
-    /// <param name="apiKey">The API key, sent as x-api-key metadata when it is not empty.</param>
+    /// <param name="apiKey">
+    /// The API key, sent as x-api-key metadata. Reflection requires it, so an empty key fails with
+    /// <see cref="StatusCode.Unauthenticated"/>.
+    /// </param>
     /// <param name="options">The endpoint and symbols to fetch, or null for every service of <see cref="DefaultEndpoint"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <exception cref="GrpcSchemaException">Reflection failed. <see cref="Explain"/> describes common causes.</exception>

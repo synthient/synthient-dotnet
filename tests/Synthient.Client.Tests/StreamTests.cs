@@ -116,10 +116,10 @@ public sealed class StreamTests
     public async Task DecodesHeliosEvents()
     {
         const string http = """{"timestamp":1759000000123,"tunnel_id":7,"domain":"example.com","port":80,"protocol":"http","meta":{"proxy_ip":"203.0.113.1","server":"s1","pool_id":"p","provider":"x"},"details":{"method":"GET","uri":"/","version":"HTTP/1.1","headers":{"Host":"example.com"}},"raw":"R0VUIC8="}""";
-        const string https = """{"timestamp":1759000000123,"tunnel_id":17257744507466107949,"domain":"example.com","port":443,"protocol":"https","meta":{},"details":null,"raw":null}""";
-        const string hello = """{"timestamp":1759000000123,"tunnel_id":8,"domain":"example.com","port":443,"protocol":"https","meta":{},"details":{"sni":"example.com","cipher_suites":[{"code":4865,"name":"TLS_AES_128_GCM_SHA256"}],"has_grease":true,"compression_methods":[0]}}""";
-        const string dns = """{"timestamp":1759000000123,"tunnel_id":1,"domain":"1.1.1.1","port":53,"protocol":"dns","meta":{}}""";
-        const string adb = """{"session":"0123456789abcdef0123456789abcdef","sequential_id":1,"command":"id","hash":"ab"}""";
+        const string https = """{"timestamp":1759000000123,"tunnel_id":17257744507466107949,"domain":"example.com","port":443,"protocol":"https","meta":{},"transport":"tcp","details":null,"raw":null}""";
+        const string hello = """{"timestamp":1759000000123,"tunnel_id":8,"domain":"example.com","port":443,"protocol":"https","meta":{},"transport":"quic","details":{"sni":"example.com","cipher_suites":[{"code":4865,"name":"TLS_AES_128_GCM_SHA256"}],"has_grease":true,"compression_methods":[0]}}""";
+        const string dns = """{"timestamp":1759000000123,"tunnel_id":1,"domain":"1.1.1.1","port":53,"protocol":"dns","meta":{},"transport":"sctp"}""";
+        const string adb = """{"session":"0123456789abcdef0123456789abcdef","sequential_id":1,"command":"id","hash":"ab","meta":null}""";
         var handler = new StubHandler(Ndjson(http), Ndjson(https + "\n" + hello), Ndjson(dns), Ndjson(adb));
         using var client = Fixtures.StubClient(handler);
 
@@ -137,8 +137,57 @@ public sealed class StreamTests
         Assert.Null(httpsEvents[0].Raw);
         Assert.Equal("example.com", httpsEvents[1].Details!.Sni);
         Assert.Equal(4865, httpsEvents[1].Details!.CipherSuites![0].Code);
+        Assert.Null(httpsEvents[1].Details!.Complete);
+        Assert.Null(httpsEvents[1].Details!.SignatureAlgorithmsCert);
+        Assert.Equal(HeliosTransport.Tcp, httpsEvents[0].Transport);
+        Assert.Equal(HeliosTransport.Quic, httpsEvents[1].Transport);
         Assert.Equal(53, dnsEvent.Port);
+        Assert.Equal("sctp", dnsEvent.Transport);
         Assert.Equal("id", adbEvent.Command);
+        Assert.Null(adbEvent.Meta);
+        Assert.Equal(
+            ["/api/v4/feeds/helios/http/stream", "/api/v4/feeds/helios/https/stream", "/api/v4/feeds/helios/dns/stream", "/api/v4/feeds/helios/adb/stream"],
+            handler.Requests.Select(r => r.Path));
+    }
+
+    [Fact]
+    public async Task DecodesNewHeliosFields()
+    {
+        const string adb = """{"session":"00075b3dde7ddb645347a137f01ac991","sequential_id":3,"command":"id","hash":"cd6d","meta":{"proxy_ip":"203.0.113.10","server":"hp-eu-1","pool_id":"prod","provider":"luminati"}}""";
+        const string https = """
+            {"timestamp":1714780800123,"tunnel_id":17257744507466107949,"domain":"example.com","port":443,"protocol":"https",
+             "meta":{"proxy_ip":"203.0.113.10"},"transport":"tcp",
+             "details":{"record_version":"TLS 1.0","record_version_code":769,"handshake_version":"TLS 1.2","handshake_version_code":771,
+                        "supported_version_codes":[2570,772,771],"alpn_hex":["6832","687474702f312e31"],
+                        "signature_algorithms_cert":[{"code":2052,"name":"rsa_pss_rsae_sha256"}],"record_size_limit":16385,
+                        "max_fragment_length":4,"complete":false,"truncated":true,"transport":"tcp"}}
+            """;
+        using var client = Fixtures.StubClient(new StubHandler(Ndjson(adb), Ndjson(https.ReplaceLineEndings(""))));
+
+        var adbEvent = Assert.Single(await CollectAsync(client.HeliosAdb.StreamAsync(Token)));
+        var hello = Assert.Single(await CollectAsync(client.HeliosHttps.StreamAsync(Token))).Details!;
+
+        Assert.Equal("luminati", adbEvent.Meta!.Provider);
+        Assert.Equal(769, hello.RecordVersionCode);
+        Assert.Equal(771, hello.HandshakeVersionCode);
+        Assert.Equal([0x0A0A, 772, 771], hello.SupportedVersionCodes);
+        Assert.Equal(["6832", "687474702f312e31"], hello.AlpnHex);
+        Assert.Equal("rsa_pss_rsae_sha256", Assert.Single(hello.SignatureAlgorithmsCert!).Name);
+        Assert.Equal(16385, hello.RecordSizeLimit);
+        Assert.Equal(4, hello.MaxFragmentLength);
+        Assert.False(hello.Complete);
+        Assert.True(hello.Truncated);
+        Assert.Equal(HeliosTransport.Tcp, hello.Transport);
+    }
+
+    [Theory]
+    [InlineData("""{"timestamp":1,"tunnel_id":1,"domain":"d","port":53,"protocol":"dns","meta":{}}""")]
+    [InlineData("""{"timestamp":1,"tunnel_id":1,"domain":"d","port":53,"protocol":"dns","meta":{},"transport":null}""")]
+    public async Task RequiresTheHeliosTransport(string line)
+    {
+        using var client = Fixtures.StubClient(new StubHandler(Ndjson(line)));
+
+        await Assert.ThrowsAsync<SynthientException>(() => CollectAsync(client.HeliosDns.StreamAsync(Token)));
     }
 
     [Theory]

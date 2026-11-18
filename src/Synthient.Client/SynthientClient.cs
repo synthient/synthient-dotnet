@@ -6,8 +6,8 @@ using System.Text.Json;
 namespace Synthient;
 
 /// <summary>
-/// A client for the Synthient API: IP and domain intelligence, account details, and the Synthient
-/// data feeds. A client is safe for concurrent use and should be reused for the life of the
+/// A client for the Synthient API: IP intelligence, account details, and the Synthient data feeds
+/// and datasets. A client is safe for concurrent use and should be reused for the life of the
 /// application, because it pools connections.
 /// </summary>
 /// <remarks>
@@ -22,7 +22,7 @@ namespace Synthient;
 /// 503, and 504 responses, on 429 responses with Retry-After, and when the connection fails (other
 /// than a TLS error) or <see cref="SynthientClientOptions.Timeout"/> elapses before a response.
 /// Failures after the response has started, such as a stream that breaks off or stalls, are not
-/// retried, and neither is the storage transfer in <see cref="Feed{TEvent}.DownloadAsync"/>.
+/// retried, and neither is the storage transfer in <see cref="Feed{TEvent}.DownloadAsync(string, string?, CancellationToken)"/>.
 /// Billed lookups and health checks are retried only on 429 responses with Retry-After, which the
 /// rate limiter returns before doing any work, so a lookup is never sent twice after the API may
 /// have charged for it. A 429 without Retry-After means the key's monthly request budget is spent
@@ -34,6 +34,9 @@ public sealed class SynthientClient : IDisposable
 {
     /// <summary>The version of this SDK. It is sent in the User-Agent header.</summary>
     public const string Version = "1.0.0";
+
+    internal const string DomainLookupRemoved =
+        "Domain lookup was removed from the Synthient API and will stop working when the endpoint is turned off. It will be removed in the next major version.";
 
     /// <summary>Creates a client that reads its API key from the <c>SYNTHIENT_API_KEY</c> environment variable.</summary>
     /// <exception cref="ArgumentException">The environment variable is not set.</exception>
@@ -60,10 +63,12 @@ public sealed class SynthientClient : IDisposable
         Anonymizers = new Feed<AnonymizerEvent>(Transport, "/feeds/anonymizers");
         Torrents = new Feed<TorrentEvent>(Transport, "/feeds/torrents");
         Ja4t = new Feed<Ja4tEvent>(Transport, "/feeds/ja4t");
-        HeliosHttp = new Feed<HeliosHttpEvent>(Transport, "/feeds/helio/http");
-        HeliosHttps = new Feed<HeliosHttpsEvent>(Transport, "/feeds/helio/https");
-        HeliosDns = new Feed<HeliosDnsEvent>(Transport, "/feeds/helio/dns");
-        HeliosAdb = new Feed<HeliosAdbEvent>(Transport, "/feeds/helio/adb");
+        HeliosHttp = new Feed<HeliosHttpEvent>(Transport, "/feeds/helios/http");
+        HeliosHttps = new Feed<HeliosHttpsEvent>(Transport, "/feeds/helios/https");
+        HeliosDns = new Feed<HeliosDnsEvent>(Transport, "/feeds/helios/dns");
+        HeliosAdb = new Feed<HeliosAdbEvent>(Transport, "/feeds/helios/adb");
+        Geolocation = new Dataset(Transport, "/feeds/geolocation");
+        Whois = new Dataset(Transport, "/feeds/whois");
     }
 
     /// <summary>The base address of the Synthient HTTP API.</summary>
@@ -93,6 +98,18 @@ public sealed class SynthientClient : IDisposable
     /// <summary>The Helios honeypot Android Debug Bridge command feed.</summary>
     public Feed<HeliosAdbEvent> HeliosAdb { get; }
 
+    /// <summary>
+    /// The daily IP geolocation dataset, published after about 01:30 UTC as <see cref="ExportFormat.Parquet"/>,
+    /// <see cref="ExportFormat.Csv"/> (gzipped), and <see cref="ExportFormat.Mmdb"/> (a MaxMind database).
+    /// </summary>
+    public Dataset Geolocation { get; }
+
+    /// <summary>
+    /// The daily WHOIS registry dataset, usually published the next morning UTC as one
+    /// <see cref="ExportFormat.TarGz"/> archive of parquet files, listed in <see cref="ExportMeta.Entities"/>.
+    /// </summary>
+    public Dataset Whois { get; }
+
     internal Transport Transport { get; }
 
     /// <summary>
@@ -104,8 +121,8 @@ public sealed class SynthientClient : IDisposable
 
     /// <summary>
     /// Completes if the API and its dependencies are healthy. Any non-2xx response throws an
-    /// <see cref="ApiException"/>, such as a 503 when a dependency is down or the edge's 401 for a
-    /// malformed key. It costs no credits.
+    /// <see cref="ApiException"/>, such as a 503 when a dependency is down or a 401 for a missing or
+    /// invalid key. It needs a valid key with any scope, and costs no credits.
     /// </summary>
     public async Task CheckHealthAsync(CancellationToken cancellationToken = default)
     {
@@ -136,12 +153,13 @@ public sealed class SynthientClient : IDisposable
     }
 
     /// <summary>
-    /// Looks up as many as 1000 addresses in one request. Private and reserved addresses are skipped
-    /// and duplicates collapse, so match results by <see cref="IPInfo.IP"/> rather than by
-    /// position. A batch with no address the API can look up fails with a 422
-    /// <see cref="ApiException"/>. The API bills ceil(n * 0.9) credits for the n distinct addresses
-    /// it looks up, and nothing if the account cannot cover the whole batch. An empty batch returns
-    /// no results without a request.
+    /// Looks up as many addresses in one request as the workspace plan allows: 100 on Free, 500 on
+    /// Starter, and 1000 on Premium and Enterprise. A larger batch fails with a 422
+    /// <see cref="ApiException"/>. Private and reserved addresses are skipped and duplicates
+    /// collapse, so match results by <see cref="IPInfo.IP"/> rather than by position. A batch with
+    /// no address the API can look up also fails with a 422. The API bills ceil(n * 0.9) credits
+    /// for the n distinct addresses it looks up, and nothing if the account cannot cover the whole
+    /// batch. An empty batch returns no results without a request.
     /// </summary>
     /// <exception cref="ArgumentException">
     /// There are more than 1000 addresses, or one is null or an IPv6 address with a scope ID.
@@ -184,6 +202,7 @@ public sealed class SynthientClient : IDisposable
     /// <param name="limit">Caps the number of recent events returned, from 1 to 1000. Null uses the API default of 50.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <exception cref="ArgumentException">The domain is empty, ".", or "..".</exception>
+    [Obsolete(DomainLookupRemoved)]
     public Task<DomainInfo> LookupDomainAsync(string domain, int? limit = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(domain);

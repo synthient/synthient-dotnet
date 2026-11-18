@@ -105,6 +105,11 @@ public sealed class HeliosHttpsEvent
     [JsonPropertyName("meta")]
     public required HeliosMeta Meta { get; init; }
 
+    /// <summary>The tunnel transport the handshake arrived over. See <see cref="HeliosTransport"/> for known values.</summary>
+    [JsonPropertyName("transport")]
+    [JsonRequired]
+    public string Transport { get; init; } = "";
+
     /// <summary>The parsed ClientHello, or null if the sensor could not parse the handshake.</summary>
     [JsonPropertyName("details")]
     public TlsClientHello? Details { get; init; }
@@ -223,6 +228,46 @@ public sealed class TlsClientHello
     /// <summary>Whether the client requested OCSP stapling.</summary>
     [JsonPropertyName("status_request")]
     public bool? StatusRequest { get; init; }
+
+    /// <summary>False when the sensor captured only part of the ClientHello.</summary>
+    [JsonPropertyName("complete")]
+    public bool? Complete { get; init; }
+
+    /// <summary>True when the ClientHello was cut short.</summary>
+    [JsonPropertyName("truncated")]
+    public bool? Truncated { get; init; }
+
+    /// <summary>The transport the handshake was read from, as the sensor reports it. See <see cref="HeliosTransport"/> for known values.</summary>
+    [JsonPropertyName("transport")]
+    public string? Transport { get; init; }
+
+    /// <summary>The <see cref="RecordVersion"/> wire code point, such as 769.</summary>
+    [JsonPropertyName("record_version_code")]
+    public int? RecordVersionCode { get; init; }
+
+    /// <summary>The <see cref="HandshakeVersion"/> wire code point, such as 771.</summary>
+    [JsonPropertyName("handshake_version_code")]
+    public int? HandshakeVersionCode { get; init; }
+
+    /// <summary>The <see cref="SupportedVersions"/> wire code points in the same order, GREASE values included.</summary>
+    [JsonPropertyName("supported_version_codes")]
+    public IReadOnlyList<int>? SupportedVersionCodes { get; init; }
+
+    /// <summary>The <see cref="Alpn"/> entries hex-encoded, in the same order.</summary>
+    [JsonPropertyName("alpn_hex")]
+    public IReadOnlyList<string>? AlpnHex { get; init; }
+
+    /// <summary>The signature algorithms offered for certificates.</summary>
+    [JsonPropertyName("signature_algorithms_cert")]
+    public IReadOnlyList<TlsCodeName>? SignatureAlgorithmsCert { get; init; }
+
+    /// <summary>The record_size_limit extension value.</summary>
+    [JsonPropertyName("record_size_limit")]
+    public int? RecordSizeLimit { get; init; }
+
+    /// <summary>The max_fragment_length extension value.</summary>
+    [JsonPropertyName("max_fragment_length")]
+    public int? MaxFragmentLength { get; init; }
 }
 
 /// <summary>A TLS registry code point and its name. GREASE values are named "GREASE(0x....)".</summary>
@@ -282,6 +327,11 @@ public sealed class HeliosDnsEvent
     /// <summary>The capturing sensor.</summary>
     [JsonPropertyName("meta")]
     public required HeliosMeta Meta { get; init; }
+
+    /// <summary>The tunnel transport the event arrived over. See <see cref="HeliosTransport"/> for known values.</summary>
+    [JsonPropertyName("transport")]
+    [JsonRequired]
+    public string Transport { get; init; } = "";
 }
 
 /// <summary>
@@ -309,4 +359,9 @@ public sealed class HeliosAdbEvent
     /// </summary>
     [JsonPropertyName("hash")]
     public required string Hash { get; init; }
+
+    /// <summary>The capturing sensor, or null on events from sensors that do not send it yet.</summary>
+    [JsonPropertyName("meta")]
+    [JsonRequired]
+    public HeliosMeta? Meta { get; init; }
 }

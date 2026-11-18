@@ -127,8 +127,8 @@ public static class DeviceOS
 
 /// <summary>
 /// The known API key scopes, used by <see cref="Account.Scopes"/>. <see cref="Basic"/> authorizes
-/// lookups and the account. Each feed has one scope for its exports and one for its stream. New
-/// values may be added.
+/// lookups and the account. Each feed has one scope for its exports and one for its stream, and
+/// each dataset has one for its exports. New values may be added.
 /// </summary>
 public static class Scope
 {
@@ -195,7 +195,32 @@ public static class Scope
     /// <summary>The JA4T feed stream.</summary>
     public const string Ja4tStream = "JA4T_STREAM";
 
+    /// <summary>Geolocation dataset exports.</summary>
+    public const string GeolocationFeed = "GEOLOCATION_FEED";
+
+    /// <summary>WHOIS dataset exports.</summary>
+    public const string WhoisFeed = "WHOIS_FEED";
+
+    /// <summary>Reserved for a WHOIS stream. No operation accepts it yet.</summary>
+    public const string WhoisStream = "WHOIS_STREAM";
+
+    /// <summary>Reserved for an upcoming network IOC feed's exports.</summary>
+    public const string NetworkIocsFeed = "NETWORK_IOCS_FEED";
+
+    /// <summary>Reserved for an upcoming network IOC feed's stream.</summary>
+    public const string NetworkIocsStream = "NETWORK_IOCS_STREAM";
+
+    /// <summary>Reserved for an upcoming file IOC feed's exports.</summary>
+    public const string FileIocsFeed = "FILE_IOCS_FEED";
+
+    /// <summary>Reserved for an upcoming file IOC feed's stream.</summary>
+    public const string FileIocsStream = "FILE_IOCS_STREAM";
+
+    /// <summary>A dashboard permission that authorizes no API operation.</summary>
+    public const string Helios = "HELIOS";
+
     /// <summary>Proxy administration.</summary>
+    [Obsolete("ADMIN_PROXIES was removed from the Synthient API and never authorized a public operation. It will be removed in the next major version.")]
     public const string AdminProxies = "ADMIN_PROXIES";
 }
 
@@ -213,6 +238,7 @@ public static class Relation
 }
 
 /// <summary>The values of <see cref="DomainInfo.Status"/>.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public static class DomainStatus
 {
     /// <summary>The domain had events in the last 24 hours.</summary>
@@ -223,6 +249,7 @@ public static class DomainStatus
 }
 
 /// <summary>The values of <see cref="ActivityStats.Cadence"/>, each a sentence.</summary>
+[Obsolete(SynthientClient.DomainLookupRemoved)]
 public static class Cadence
 {
     /// <summary>No events in the last 30 days.</summary>
@@ -241,7 +268,7 @@ public static class Cadence
     public const string BurstDriven = "Activity is burst-driven with significant peaks.";
 }
 
-/// <summary>The values of <see cref="Export.Kind"/> and <see cref="ExportMeta.Kind"/>.</summary>
+/// <summary>The values of <see cref="Export.Kind"/>, <see cref="ExportMeta.Kind"/>, and <see cref="ExportVolumeDay.Kind"/>.</summary>
 public static class ExportKind
 {
     /// <summary>An export of one UTC hour.</summary>
@@ -251,7 +278,10 @@ public static class ExportKind
     public const string Daily = "daily";
 }
 
-/// <summary>The known values of <see cref="ParquetColumn.Type"/>. New values may be added.</summary>
+/// <summary>
+/// The known values of <see cref="ParquetColumn.Type"/>. New values may be added, and the datasets
+/// already use others, such as "double", "date", and "list&lt;string&gt;".
+/// </summary>
 [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "The names are the parquet type names.")]
 public static class ParquetType
 {
@@ -272,4 +302,83 @@ public static class ParquetType
 
     /// <summary>Raw bytes.</summary>
     public const string Bytes = "bytes";
+}
+
+/// <summary>
+/// The known export file formats, used by <see cref="ExportMeta.Format"/>, <see cref="ExportFile.Format"/>,
+/// and the format argument of <see cref="Dataset"/> methods. New values may be added.
+/// </summary>
+public static class ExportFormat
+{
+    /// <summary>Parquet, the format of every feed export and the default for geolocation.</summary>
+    public const string Parquet = "parquet";
+
+    /// <summary>Gzipped CSV with a header row, served as a .csv.gz file.</summary>
+    public const string Csv = "csv";
+
+    /// <summary>A MaxMind database, of database type Synthient-Enterprise.</summary>
+    public const string Mmdb = "mmdb";
+
+    /// <summary>A gzipped tar archive, the only format of the WHOIS dataset.</summary>
+    public const string TarGz = "tar.gz";
+}
+
+/// <summary>
+/// The variants of a feed export, used by the variant argument of <see cref="Feed{TEvent}"/> methods
+/// and by <see cref="Export.Variant"/>. Only the proxies, anonymizers, and JA4T feeds publish lite
+/// files. Elsewhere, a lite listing is empty and a lite export fails with a 404.
+/// </summary>
+public static class ExportVariant
+{
+    /// <summary>Every sighting, the default.</summary>
+    public const string Full = "full";
+
+    /// <summary>
+    /// The export deduplicated to the latest row per address and provider for proxies, per address,
+    /// fingerprint, and provider for JA4T, and per range and provider for anonymizers. It is
+    /// published shortly after the full file, and fails with a 404 until then.
+    /// </summary>
+    public const string Lite = "lite";
+}
+
+/// <summary>The known values of <see cref="ExportEntity.Entity"/>. New values may be added.</summary>
+public static class WhoisEntity
+{
+    /// <summary>Autonomous systems.</summary>
+    public const string Asns = "asns";
+
+    /// <summary>Networks.</summary>
+    public const string Networks = "networks";
+
+    /// <summary>Organisations.</summary>
+    public const string Organisations = "organisations";
+
+    /// <summary>Contacts.</summary>
+    public const string Contacts = "contacts";
+
+    /// <summary>Maintainers.</summary>
+    public const string Maintainers = "maintainers";
+
+    /// <summary>Transfers.</summary>
+    public const string Transfers = "transfers";
+
+    /// <summary>Delegations.</summary>
+    public const string Delegations = "delegations";
+}
+
+/// <summary>
+/// The known tunnel transports, used by <see cref="HeliosDnsEvent.Transport"/>,
+/// <see cref="HeliosHttpsEvent.Transport"/>, and <see cref="TlsClientHello.Transport"/>. New values
+/// may be added.
+/// </summary>
+public static class HeliosTransport
+{
+    /// <summary>TCP.</summary>
+    public const string Tcp = "tcp";
+
+    /// <summary>UDP.</summary>
+    public const string Udp = "udp";
+
+    /// <summary>QUIC.</summary>
+    public const string Quic = "quic";
 }

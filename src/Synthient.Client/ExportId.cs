@@ -3,16 +3,16 @@ using System.Globalization;
 namespace Synthient;
 
 /// <summary>
-/// Builds the IDs of parquet exports. An export ID is <see cref="Latest"/>, a UTC day as
-/// "YYYY-MM-DD", or a UTC hour as "YYYY-MM-DD/H", where a zero-padded hour is also accepted.
-/// <see cref="Export.Id"/> values can be passed as they are. An invalid ID throws
+/// Builds the IDs of exports. An export ID is <see cref="Latest"/>, a UTC day as "YYYY-MM-DD", or
+/// a UTC hour as "YYYY-MM-DD/H", where a zero-padded hour is also accepted. Datasets have no hourly
+/// exports. <see cref="Export.Id"/> values can be passed as they are. An invalid ID throws
 /// <see cref="ArgumentException"/> before any request is sent.
 /// </summary>
 public static class ExportId
 {
     /// <summary>
-    /// The feed's freshest export: the newest hourly export during the day, or the daily export once
-    /// that day's hours are rolled up.
+    /// The freshest export: for a feed, the newest hourly export during the day, or the daily export
+    /// once that day's hours are rolled up, and for a dataset, the newest day.
     /// </summary>
     public const string Latest = "latest";
 

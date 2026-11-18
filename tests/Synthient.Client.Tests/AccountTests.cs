@@ -22,15 +22,29 @@ public sealed class AccountTests
         Assert.Equal(new DateTimeOffset(2026, 9, 28, 19, 4, 52, TimeSpan.Zero).AddTicks(4638690), account.ApiKey.CreatedAt);
     }
 
-    [Fact]
-    public async Task ApiKeyIsOptional()
+    [Theory]
+    [InlineData("}")]
+    [InlineData(",\"api_key\":null}")]
+    public async Task ApiKeyIsOptional(string ending)
     {
-        var json = Fixtures.Account[..Fixtures.Account.IndexOf(",\n  \"api_key\"", StringComparison.Ordinal)] + "}";
+        var json = Fixtures.Account[..Fixtures.Account.IndexOf(",\n  \"api_key\"", StringComparison.Ordinal)] + ending;
         using var client = Fixtures.StubClient(new StubHandler(Fixtures.Json(200, json)));
 
         var account = await client.GetAccountAsync(Token);
 
         Assert.Null(account.ApiKey);
+    }
+
+    [Fact]
+    public async Task DecodesNewAndUnknownScopes()
+    {
+        var json = Fixtures.Account.Replace(
+            "[\"BASIC\", \"PROXY_FEEDS\"]", "[\"HELIOS\", \"GEOLOCATION_FEED\", \"WHOIS_FEED\", \"FILE_IOCS_STREAM\", \"FUTURE_SCOPE\"]", StringComparison.Ordinal);
+        using var client = Fixtures.StubClient(new StubHandler(Fixtures.Json(200, json)));
+
+        var account = await client.GetAccountAsync(Token);
+
+        Assert.Equal([Scope.Helios, Scope.GeolocationFeed, Scope.WhoisFeed, Scope.FileIocsStream, "FUTURE_SCOPE"], account.Scopes);
     }
 
     [Fact]

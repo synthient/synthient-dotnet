@@ -14,14 +14,14 @@ public sealed class ConformanceTests
 
     private static readonly Dictionary<string, Type> Models = new()
     {
-        ["ASNEntry"] = typeof(AsnCount),
         ["AccountAPIKey"] = typeof(AccountApiKey),
         ["AccountInfoResponse"] = typeof(Account),
-        ["ActivityStatsBlock"] = typeof(ActivityStats),
         ["AnonymizerStreamEntry"] = typeof(AnonymizerEvent),
-        ["CountryEntry"] = typeof(CountryCount),
         ["DeviceInfo"] = typeof(Device),
-        ["DomainLookupResponse"] = typeof(DomainInfo),
+        ["ExportDailyItem"] = typeof(ExportVolumeDay),
+        ["ExportDailyResponse"] = typeof(ExportVolume),
+        ["ExportEntityFile"] = typeof(ExportEntity),
+        ["ExportFormatFile"] = typeof(ExportFile),
         ["ExportListItem"] = typeof(Export),
         ["ExportListResponse"] = typeof(ExportPage),
         ["ExportMetaResponse"] = typeof(ExportMeta),
@@ -39,36 +39,41 @@ public sealed class ConformanceTests
         ["LookupQuota"] = typeof(LookupQuota),
         ["NetworkInfo"] = typeof(Network),
         ["Organization"] = typeof(Organization),
-        ["PortEntry"] = typeof(PortCount),
         ["ProjectedColumn"] = typeof(ParquetColumn),
         ["ProviderEntry"] = typeof(Provider),
         ["ProxyStreamEntry"] = typeof(ProxyEvent),
-        ["RecentEvent"] = typeof(DomainEvent),
         ["Schema"] = typeof(ParquetSchema),
-        ["Stats"] = typeof(DomainStats),
-        ["SubdomainEntry"] = typeof(SubdomainCount),
         ["TLSClientHello"] = typeof(TlsClientHello),
         ["TLSCodeName"] = typeof(TlsCodeName),
         ["TLSExtension"] = typeof(TlsExtension),
-        ["TimeSeriesEntry"] = typeof(TimeSeriesPoint),
         ["TorrentFileEntry"] = typeof(TorrentFile),
         ["TorrentPeerEntry"] = typeof(TorrentPeer),
         ["TorrentStreamEntry"] = typeof(TorrentEvent),
-        ["UniqueIPsBlock"] = typeof(UniqueIPCounts),
     };
 
     // Problem bodies are parsed by hand so that malformed errors still produce an ApiException.
     private static readonly string[] Unmodeled = ["ProblemDetails", "ValidationProblemDetails"];
 
+    // The API once sent a null Schema.fields (openapi-issues.md #42), so the SDK reads null or
+    // missing as empty instead of requiring it.
+    private static readonly string[] OptionalInTheSdk = ["Schema.fields"];
+
+    // Domain lookup left the spec but is deprecated rather than removed until the next major version.
+    private static readonly (string Method, string Template)[] DeprecatedOperations = [("GET", "/lookup/domain/{domain}")];
+
     private static readonly Dictionary<string, Type> ValueSets = new()
     {
         ["AccountInfoResponse.scopes"] = typeof(Scope),
-        ["ActivityStatsBlock.cadence"] = typeof(Cadence),
         ["AnonymizerStreamEntry.type"] = typeof(ProxyType),
         ["DeviceInfo.os"] = typeof(DeviceOS),
-        ["DomainLookupResponse.status"] = typeof(DomainStatus),
+        ["ExportDailyItem.kind"] = typeof(ExportKind),
+        ["ExportEntityFile.entity"] = typeof(WhoisEntity),
+        ["ExportFormatFile.format"] = typeof(ExportFormat),
         ["ExportListItem.kind"] = typeof(ExportKind),
+        ["ExportMetaResponse.format"] = typeof(ExportFormat),
         ["ExportMetaResponse.kind"] = typeof(ExportKind),
+        ["HoneypotDNSStreamEntry.transport"] = typeof(HeliosTransport),
+        ["HoneypotHTTPSStreamEntry.transport"] = typeof(HeliosTransport),
         ["JA4TStreamEntry.type"] = typeof(ProxyType),
         ["NetworkInfo.type"] = typeof(NetworkType),
         ["Organization.relation"] = typeof(Relation),
@@ -126,7 +131,7 @@ public sealed class ConformanceTests
         {
             var constants = ValueSets[property]
                 .GetFields(BindingFlags.Public | BindingFlags.Static)
-                .Where(field => field.IsLiteral)
+                .Where(field => field.IsLiteral && field.GetCustomAttribute<ObsoleteAttribute>() is null)
                 .Select(field => (string)field.GetRawConstantValue()!);
             Assert.True(values.Order().SequenceEqual(constants.Order()), $"{ValueSets[property].Name} does not match {property}");
         }
@@ -143,7 +148,9 @@ public sealed class ConformanceTests
         await Assert.ThrowsAsync<ApiException>(() => client.CheckHealthAsync(token));
         await Assert.ThrowsAsync<ApiException>(() => client.LookupIPAsync(IPAddress.Loopback, token));
         await Assert.ThrowsAsync<ApiException>(() => client.LookupIPsAsync([IPAddress.Loopback], token));
+#pragma warning disable CS0618
         await Assert.ThrowsAsync<ApiException>(() => client.LookupDomainAsync("example.com", cancellationToken: token));
+#pragma warning restore CS0618
         await ExerciseAsync(client.Proxies);
         await ExerciseAsync(client.Anonymizers);
         await ExerciseAsync(client.Torrents);
@@ -152,22 +159,26 @@ public sealed class ConformanceTests
         await ExerciseAsync(client.HeliosHttps);
         await ExerciseAsync(client.HeliosDns);
         await ExerciseAsync(client.HeliosAdb);
+        await ExerciseDatasetAsync(client.Geolocation);
+        await ExerciseDatasetAsync(client.Whois);
 
         var operations = Spec.GetProperty("paths").EnumerateObject()
             .SelectMany(path => path.Value.EnumerateObject().Select(method => (Method: method.Name.ToUpperInvariant(), Template: path.Name)))
             .ToList();
+        var known = operations.Concat(DeprecatedOperations).ToList();
         var covered = handler.Requests
-            .Select(request => (Method: request.Method.Method, Template: TemplateOf(request.Path["/api/v4".Length..], operations)))
+            .Select(request => (Method: request.Method.Method, Template: TemplateOf(request.Path["/api/v4".Length..], known)))
             .ToHashSet();
 
-        Assert.Equal(53, operations.Count);
-        Assert.Equal(operations.Order(), covered.Order());
+        Assert.Equal(68, operations.Count);
+        Assert.Equal(known.Order(), covered.Order());
 
         async Task ExerciseAsync<T>(Feed<T> feed)
         {
             var hour = ExportId.Hourly(new DateOnly(2026, 5, 3), 7);
             var day = ExportId.Daily(new DateOnly(2026, 5, 3));
             await Assert.ThrowsAsync<ApiException>(() => feed.ListExportsAsync(cancellationToken: token));
+            await Assert.ThrowsAsync<ApiException>(() => feed.GetExportVolumeAsync(cancellationToken: token));
             await Assert.ThrowsAsync<ApiException>(() => feed.GetExportMetaAsync(day, token));
             await Assert.ThrowsAsync<ApiException>(() => feed.GetExportMetaAsync(hour, token));
             await Assert.ThrowsAsync<ApiException>(() => feed.GetDownloadUrlAsync(day, token));
@@ -178,6 +189,14 @@ public sealed class ConformanceTests
                 {
                 }
             });
+        }
+
+        async Task ExerciseDatasetAsync(Dataset dataset)
+        {
+            await Assert.ThrowsAsync<ApiException>(() => dataset.ListExportsAsync(cancellationToken: token));
+            await Assert.ThrowsAsync<ApiException>(() => dataset.GetExportVolumeAsync(cancellationToken: token));
+            await Assert.ThrowsAsync<ApiException>(() => dataset.GetExportMetaAsync(ExportId.Latest, cancellationToken: token));
+            await Assert.ThrowsAsync<ApiException>(() => dataset.DownloadAsync("2026-05-03", cancellationToken: token));
         }
     }
 
@@ -221,7 +240,8 @@ public sealed class ConformanceTests
             var underlying = Nullable.GetUnderlyingType(property.PropertyType);
             var isNullable = property.PropertyType.IsValueType ? underlying is not null : property.IsSetNullable && property.IsGetNullable;
 
-            Assert.True(required.Contains(property.Name) == property.IsRequired, $"{path} requiredness differs from the spec");
+            var requiredInTheSdk = required.Contains(property.Name) && !OptionalInTheSdk.Contains(path);
+            Assert.True(requiredInTheSdk == property.IsRequired, $"{path} requiredness differs from the spec");
             Assert.True(nullable == isNullable, $"{path} nullability differs from the spec");
             CheckType(path, property.Name, spec, underlying ?? property.PropertyType);
         }

@@ -4,7 +4,7 @@
 
 # synthient-dotnet
 
-`synthient-dotnet` is the official .NET SDK for the [Synthient API](https://docs.synthient.com): IP and domain intelligence, account details, and real-time and bulk data feeds.
+`synthient-dotnet` is the official .NET SDK for the [Synthient API](https://docs.synthient.com): IP intelligence, account details, and real-time and bulk data feeds.
 
 [![NuGet](https://img.shields.io/nuget/v/Synthient.Client)](https://www.nuget.org/packages/Synthient.Client)
 [![test](https://github.com/synthient/synthient-dotnet/actions/workflows/test.yml/badge.svg)](https://github.com/synthient/synthient-dotnet/actions/workflows/test.yml)
@@ -66,7 +66,7 @@ The second reference is only needed for the gRPC schema fetcher:
 
 ## API Keys
 
-Every request needs a Synthient API key. Keys are issued from the Synthient dashboard; if you don't have one, [contact us](mailto:contact@synthient.com). A key's scopes decide what it can call: `BASIC` covers the lookups and `GetAccountAsync`, and each feed has its own scopes, listed under [Feeds](#feeds).
+Every request needs a Synthient API key. Keys are issued from the Synthient dashboard; if you don't have one, [contact us](mailto:contact@synthient.com). A key's scopes decide what it can call: `BASIC` covers the lookups and `GetAccountAsync`, and each feed and dataset has its own scopes, listed under [Feeds](#feeds) and [Datasets](#datasets).
 
 If a request fails even though you are sending a key:
 
@@ -121,7 +121,7 @@ if (info.Intelligence is { } intelligence)
 
 ### Look up many IP addresses
 
-Look up as many as 1000 addresses in one request for `ceil(n * 0.9)` credits. Private and reserved addresses are skipped and duplicates are merged, so match results by `IP`.
+Look up a batch of addresses in one request for `ceil(n * 0.9)` credits. The batch cap depends on your plan: 100 on Free, 500 on Starter, and 1000 on Premium and Enterprise, and the API rejects a larger batch with a 422. Private and reserved addresses are skipped and duplicates are merged, so match results by `IP`.
 
 ```csharp
 var results = await client.LookupIPsAsync([IPAddress.Parse("8.8.8.8"), IPAddress.Parse("1.1.1.1")]);
@@ -131,19 +131,6 @@ foreach (var result in results)
     {
         Console.WriteLine($"{result.IP} {intelligence.RiskScore}");
     }
-}
-```
-
-### Look up a domain
-
-Get the honeypot traffic observed for a domain and its most recent events. Each lookup costs one credit.
-
-```csharp
-var domain = await client.LookupDomainAsync("example.com", limit: 10);
-Console.WriteLine($"{domain.Status} {domain.Stats.Events24h}");
-foreach (var recent in domain.RecentEvents)
-{
-    Console.WriteLine($"{recent.Timestamp:u} {recent.TargetSubdomain} {recent.Port}");
 }
 ```
 
@@ -163,8 +150,7 @@ Every public type and member has XML documentation, which your editor shows as y
 ### SynthientClient
 
 - `LookupIPAsync` - Look up an IPv4 or IPv6 address
-- `LookupIPsAsync` - Look up as many as 1000 addresses in one request
-- `LookupDomainAsync` - Look up the honeypot traffic observed for a domain
+- `LookupIPsAsync` - Look up a batch of addresses in one request
 - `GetAccountAsync` - Get the key's account, scopes, and remaining lookup credits
 - `CheckHealthAsync` - Check that the API and its dependencies are healthy
 
@@ -175,6 +161,7 @@ Each feed is a property of the client, such as `client.Proxies`, and has the sam
 - `StreamAsync` - Stream the feed's real-time events
 - `ListExportsAsync` - List one page of the feed's Parquet exports, newest first
 - `ListAllExportsAsync` - Enumerate every export, fetching pages as needed
+- `GetExportVolumeAsync` - Get the rows and bytes the feed exported per UTC day
 - `GetExportMetaAsync` - Get an export's checksum, size, row count, and Parquet schema
 - `DownloadAsync` - Download an export's Parquet file
 - `GetDownloadUrlAsync` - Get a presigned URL for an export's Parquet file, valid for 24 hours
@@ -184,11 +171,26 @@ Each feed is a property of the client, such as `client.Proxies`, and has the sam
 | `Proxies`     | Residential, mobile, and datacenter proxies   | `ProxyEvent`       | `PROXY_FIREHOSE`        | `PROXY_FEEDS`         |
 | `Anonymizers` | VPN and anonymizer IP ranges                  | `AnonymizerEvent`  | `ANONYMIZERS_STREAM`    | `ANONYMIZERS_FEED`    |
 | `Torrents`    | BitTorrent DHT and tracker peers              | `TorrentEvent`     | `TORRENTS_STREAM`       | `TORRENTS_FEED`       |
-| `Ja4t`        | JA4T TCP fingerprints                         | `Ja4tEvent`        | `JA4T_STREAM`           | `JA4T_FEED`           |
 | `HeliosHttp`  | Helios honeypot HTTP requests                 | `HeliosHttpEvent`  | `HONEYPOT_HTTP_STREAM`  | `HONEYPOT_HTTP_FEED`  |
 | `HeliosHttps` | Helios honeypot TLS ClientHellos              | `HeliosHttpsEvent` | `HONEYPOT_HTTPS_STREAM` | `HONEYPOT_HTTPS_FEED` |
 | `HeliosDns`   | Helios honeypot tunnel destinations           | `HeliosDnsEvent`   | `HONEYPOT_DNS_STREAM`   | `HONEYPOT_DNS_FEED`   |
 | `HeliosAdb`   | Helios honeypot Android Debug Bridge commands | `HeliosAdbEvent`   | `HONEYPOT_ADB_STREAM`   | `HONEYPOT_ADB_FEED`   |
+
+### Datasets
+
+Datasets have one export per UTC day and no stream. Each dataset is a property of the client, such as `client.Geolocation`, and has the same methods:
+
+- `ListExportsAsync` - List one page of the dataset's daily exports, newest first
+- `ListAllExportsAsync` - Enumerate every export, fetching pages as needed
+- `GetExportVolumeAsync` - Get the rows and bytes the dataset exported per UTC day
+- `GetExportMetaAsync` - Get a file's checksum, size, and row count, and list every file of the day
+- `DownloadAsync` - Download a day's file in the format you choose
+- `GetDownloadUrlAsync` - Get a presigned URL for a day's file, valid for 24 hours
+
+| Property      | Data                                    | Scope              | Formats                                   |
+| ------------- | --------------------------------------- | ------------------ | ----------------------------------------- |
+| `Geolocation` | IP geolocation, network, and risk data  | `GEOLOCATION_FEED` | `parquet` (default), `csv` (gzip), `mmdb` |
+| `Whois`       | WHOIS registry records as Parquet files | `WHOIS_FEED`       | `tar.gz`                                  |
 
 ## Streaming
 
@@ -213,7 +215,7 @@ while (!cancellationToken.IsCancellationRequested)
 }
 ```
 
-- The server closes each stream after up to 30 minutes. That ends the `await foreach` without an exception, and the outer loop reconnects at once.
+- The server can close a stream at any time, such as during a deploy. That ends the `await foreach` without an exception, and the outer loop reconnects at once.
 - A 401 or 403 isn't caught, so it ends the loop, because reconnecting can't fix a rejected key or a missing scope. Cancelling the token ends it with an `OperationCanceledException`.
 - Any other failure throws a `SynthientException`, and the loop waits 2 seconds before reconnecting.
 - Events sent while disconnected are missed. The API has no resume cursor.
@@ -239,11 +241,17 @@ await foreach (var export in client.Proxies.ListAllExportsAsync())
 }
 ```
 
+Pass `day` to list only one UTC day's exports:
+
+```csharp
+var page = await client.Proxies.ListExportsAsync(day: ExportId.Daily(new DateOnly(2026, 11, 17)));
+```
+
 On the first page, the newest hourly export has the ID `latest`, a moving alias for the freshest export. Pass its `Date` and `Hour` to `ExportId.Hourly` for its stable ID, such as `2026-10-14/21`.
 
 ## Downloads
 
-Exports are Parquet files. `DownloadAsync` returns a stream of a file's contents, which you must dispose:
+Feed exports are Parquet files. `DownloadAsync` returns a stream of a file's contents, which you must dispose:
 
 ```csharp
 await using var body = await client.Proxies.DownloadAsync(ExportId.Latest);
@@ -251,11 +259,21 @@ await using var file = File.Create("proxies.parquet");
 await body.CopyToAsync(file);
 ```
 
-- Name an export by its `Id` from a listing, by `ExportId.Latest`, or by `ExportId.Daily(day)` or `ExportId.Hourly(day, hour)` for a UTC day or hour.
+Datasets offer more formats. This downloads the newest geolocation database as a MaxMind DB:
+
+```csharp
+await using var mmdb = await client.Geolocation.DownloadAsync(ExportId.Latest, ExportFormat.Mmdb);
+await using var database = File.Create("geolocation.mmdb");
+await mmdb.CopyToAsync(database);
+```
+
+- Name an export by its `Id` from a listing, by `ExportId.Latest`, or by `ExportId.Daily(day)` or `ExportId.Hourly(day, hour)` for a UTC day or hour. Datasets have no hourly exports.
 - The token passed to `DownloadAsync` covers only opening the file. To bound the rest, pass a token to each read, such as `body.CopyToAsync(file, cancellationToken)`.
 - `GetExportMetaAsync` returns the file's SHA-256 checksum. Use a fixed ID for both calls, because `latest` can move between them.
 - `GetDownloadUrlAsync` returns a presigned URL that works without a key for 24 hours, so treat it as a secret. Your API key is never sent to the storage host.
 - Hourly exports roll into the daily export shortly after 00:30 UTC the next day. After that, the hour returns a 400.
+- `Proxies` and `Anonymizers` also publish lite exports, deduplicated to the latest row per address or range and provider. Pass `ExportVariant.Lite` as `variant` to `ListExportsAsync` to list them. A lite export has the same ID as the full one, so pass `variant` again to `GetExportMetaAsync`, `GetDownloadUrlAsync`, and `DownloadAsync`.
+- Files come back exactly as served: a `csv` download is a `.csv.gz` file, and a WHOIS download is a `.tar.gz` archive of Parquet files.
 
 ## Retries
 
@@ -263,7 +281,7 @@ The client retries a failed request up to twice, backing off exponentially with 
 
 | Requests                              | Retried on                                                                                   |
 | ------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Account and feed requests             | 500, 502, 503, and 504, most connection failures and timeouts, and 429 with `Retry-After`    |
+| Account, feed, and dataset requests   | 500, 502, 503, and 504, most connection failures and timeouts, and 429 with `Retry-After`    |
 | Billed lookups and `CheckHealthAsync` | Only 429 with `Retry-After`, which comes before any work, so a lookup is never charged twice |
 
 A 429 without `Retry-After` means the monthly request budget is spent or too many streams are open, so it is thrown at once. Downloads from the storage host are never retried.
@@ -352,7 +370,7 @@ catch (ApiException e)
 | 402    | The team is out of lookup credits                                                               |
 | 403    | The key lacks the scope for the endpoint or feed                                                |
 | 404    | The export doesn't exist, or a daily export is still rolling up (`RetryAfter` is set)           |
-| 422    | The input is invalid, such as a private address or a malformed domain                           |
+| 422    | The input is invalid, such as a private address                                                 |
 | 429    | Rate limited if `RetryAfter` is set; otherwise the budget is spent or too many streams are open |
 | 5xx    | The server failed                                                                               |
 

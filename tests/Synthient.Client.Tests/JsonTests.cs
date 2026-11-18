@@ -75,4 +75,74 @@ public sealed class JsonTests
         Assert.Null(page.NextCursor);
         Assert.Empty(page.Exports);
     }
+
+    [Theory]
+    [InlineData("""{"fields":[]}""")]
+    [InlineData("""{"fields":null}""")]
+    [InlineData("""{}""")]
+    public void ReadsEmptySchemas(string schema)
+    {
+        var meta = Decode<ExportMeta>(FeedTests.MetaJson.Replace(
+            """{"fields":[{"name":"ip","type":"string"},{"name":"asn","type":"uint32"}]}""", schema, StringComparison.Ordinal));
+
+        Assert.Empty(meta.Schema.Fields);
+    }
+
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("mmdb")]
+    [InlineData("tar.gz")]
+    [InlineData("zip")]
+    public void ReadsExportFormats(string format)
+    {
+        var meta = Decode<ExportMeta>(FeedTests.MetaJson
+            .Replace("\"format\":\"parquet\",\"size\"", $"\"format\":\"{format}\",\"size\"", StringComparison.Ordinal)
+            .Replace("[{\"format\":\"parquet\"", $"[{{\"format\":\"{format}\"", StringComparison.Ordinal));
+
+        Assert.Equal(format, meta.Format);
+        Assert.Equal(format, Assert.Single(meta.Formats).Format);
+        Assert.Equal(99, meta.Formats[0].SizeBytes);
+    }
+
+    [Theory]
+    [InlineData("double")]
+    [InlineData("int32")]
+    [InlineData("date")]
+    [InlineData("float")]
+    [InlineData("timestamp")]
+    [InlineData("list<string>")]
+    public void ReadsDatasetColumnTypes(string type)
+    {
+        var schema = Decode<ParquetSchema>($$"""{"fields":[{"name":"c","type":"{{type}}"}]}""");
+
+        Assert.Equal(type, Assert.Single(schema.Fields).Type);
+    }
+
+    [Fact]
+    public void ReadsLiteExports()
+    {
+        var page = Decode<ExportPage>(FeedTests.Page(["latest"], null).Replace("\"kind\"", "\"variant\":\"lite\",\"kind\"", StringComparison.Ordinal));
+
+        Assert.Equal(ExportVariant.Lite, page.Exports[0].Variant);
+        Assert.Equal(ExportFormat.Parquet, Assert.Single(page.Exports[0].Formats).Format);
+    }
+
+    [Fact]
+    public void ReadsUnknownWhoisEntities()
+    {
+        var entity = Decode<ExportEntity>("""{"entity":"routes","row_count":5000000000,"size_bytes":1,"checksum":"ab"}""");
+
+        Assert.Equal("routes", entity.Entity);
+        Assert.Equal(5_000_000_000, entity.RowCount);
+        Assert.Null(entity.Schema);
+    }
+
+    [Fact]
+    public void RequiresExportFormats()
+    {
+        const string export = """{"id":"latest","kind":"daily","date":"2026-05-03","size_bytes":1,"row_count":1,"checksum":"ab","created_at":1,"download_path":"/x"}""";
+        Assert.Throws<SynthientException>(() => Decode<ExportPage>($$"""{"stream":"proxies","feeds":[{{export}}]}"""));
+        Assert.Throws<SynthientException>(() => Decode<ExportMeta>(FeedTests.MetaJson.Replace(
+            "\"formats\":[{\"format\":\"parquet\",\"size_bytes\":99,\"checksum\":\"ab\"}]", "\"formats\":null", StringComparison.Ordinal)));
+    }
 }

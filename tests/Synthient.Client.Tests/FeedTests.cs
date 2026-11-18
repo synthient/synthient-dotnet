@@ -59,7 +59,7 @@ public sealed class FeedTests
         Assert.Equal("latest", ExportId.Latest);
     }
 
-    public static TheoryData<string> Feeds => ["proxies", "anonymizers", "torrents", "ja4t", "helio/http", "helio/https", "helio/dns", "helio/adb"];
+    public static TheoryData<string> Feeds => ["proxies", "anonymizers", "torrents", "ja4t", "helios/http", "helios/https", "helios/dns", "helios/adb"];
 
     [Theory]
     [MemberData(nameof(Feeds))]
@@ -196,6 +196,87 @@ public sealed class FeedTests
     }
 
     [Fact]
+    public async Task SendsDayAndVariantOnlyWhenSet()
+    {
+        var handler = new StubHandler(_ => Fixtures.Json(200, Page([], null)));
+        using var client = Fixtures.StubClient(handler);
+
+        await client.Proxies.ListExportsAsync(cancellationToken: Token);
+        await client.Proxies.ListExportsAsync(day: ExportId.Daily(new DateOnly(2026, 5, 3)), variant: ExportVariant.Lite, cancellationToken: Token);
+
+        Assert.Equal(
+            ["/api/v4/feeds/proxies/export", "/api/v4/feeds/proxies/export?day=2026-05-03&variant=lite"],
+            handler.Requests.Select(r => r.PathAndQuery));
+    }
+
+    [Fact]
+    public async Task ListsAllExportsWithTheSameFiltersOnEveryPage()
+    {
+        var handler = new StubHandler(
+            Fixtures.Json(200, Page(["2026-05-03"], "c1")),
+            Fixtures.Json(200, Page(["latest"], "")));
+        using var client = Fixtures.StubClient(handler);
+
+        await foreach (var _ in client.Anonymizers.ListAllExportsAsync(day: "2026-05-03", variant: ExportVariant.Lite, cancellationToken: Token))
+        {
+        }
+
+        Assert.Equal(
+            ["/api/v4/feeds/anonymizers/export?day=2026-05-03&variant=lite", "/api/v4/feeds/anonymizers/export?cursor=c1&day=2026-05-03&variant=lite"],
+            handler.Requests.Select(r => r.PathAndQuery));
+    }
+
+    [Theory]
+    [InlineData("2026-05-03")]
+    [InlineData("2026-05-03/7")]
+    public async Task SendsTheVariantForExports(string id)
+    {
+        var handler = new StubHandler(request => request.Path.EndsWith("/meta", StringComparison.Ordinal)
+            ? Fixtures.Json(200, MetaJson)
+            : request.Uri.Host == "api.test" ? Fixtures.Redirect(307, "https://storage.test/file") : Fixtures.Text(200, "PAR1", "application/octet-stream"));
+        using var client = Fixtures.StubClient(handler);
+
+        await client.Proxies.GetExportMetaAsync(id, ExportVariant.Lite, Token);
+        await client.Proxies.GetDownloadUrlAsync(id, ExportVariant.Lite, Token);
+        await using var file = await client.Proxies.DownloadAsync(id, ExportVariant.Lite, Token);
+
+        Assert.Equal(
+            [$"/api/v4/feeds/proxies/export/{id}/meta?variant=lite", $"/api/v4/feeds/proxies/export/{id}?variant=lite", $"/api/v4/feeds/proxies/export/{id}?variant=lite", "/file"],
+            handler.Requests.Select(r => r.PathAndQuery));
+    }
+
+    [Fact]
+    public async Task UnpublishedLiteExportsThrowApiException()
+    {
+        var handler = new StubHandler(_ => Fixtures.Json(404, """{"type":"t","title":"Not Found","status":404,"detail":"No snapshot found for the requested date"}"""));
+        using var client = Fixtures.StubClient(handler);
+
+        var error = await Assert.ThrowsAsync<ApiException>(() => client.Proxies.GetExportMetaAsync(ExportId.Latest, ExportVariant.Lite, Token));
+
+        Assert.Equal(404, error.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(null, "/api/v4/feeds/torrents/export/daily")]
+    [InlineData(7, "/api/v4/feeds/torrents/export/daily?days=7")]
+    public async Task GetsTheExportVolume(int? days, string target)
+    {
+        var handler = new StubHandler(Fixtures.Json(200, VolumeJson));
+        using var client = Fixtures.StubClient(handler);
+
+        var volume = await client.Torrents.GetExportVolumeAsync(days, Token);
+
+        Assert.Equal(target, Assert.Single(handler.Requests).PathAndQuery);
+        Assert.Equal("proxies", volume.Stream);
+        Assert.Equal(new DateOnly(2026, 11, 16), volume.Days[0].Date);
+        Assert.Equal(ExportKind.Daily, volume.Days[0].Kind);
+        Assert.Equal(19_629_681_638, volume.Days[0].SizeBytes);
+        Assert.Equal(5_528_344_568, volume.Days[1].RowCount);
+        Assert.Equal(ExportKind.Hourly, volume.Days[2].Kind);
+        Assert.Equal(3, volume.Days[2].Snapshots);
+    }
+
+    [Fact]
     public async Task DecodesExportMeta()
     {
         using var client = Fixtures.StubClient(new StubHandler(Fixtures.Json(200, MetaJson)));
@@ -208,16 +289,23 @@ public sealed class FeedTests
         Assert.Equal(1234, meta.Rows);
     }
 
+    internal const string VolumeJson = """
+        {"stream":"proxies","days":[
+          {"date":"2026-11-16","kind":"daily","snapshots":1,"row_count":1440452210,"size_bytes":19629681638},
+          {"date":"2026-11-17","kind":"daily","snapshots":1,"row_count":5528344568,"size_bytes":20640294576},
+          {"date":"2026-11-18","kind":"hourly","snapshots":3,"row_count":64417250,"size_bytes":880000000}]}
+        """;
+
     internal static Func<string, Task> FeedOf(SynthientClient client, string feed) => feed switch
     {
         "proxies" => id => client.Proxies.GetExportMetaAsync(id, Token),
         "anonymizers" => id => client.Anonymizers.GetExportMetaAsync(id, Token),
         "torrents" => id => client.Torrents.GetExportMetaAsync(id, Token),
         "ja4t" => id => client.Ja4t.GetExportMetaAsync(id, Token),
-        "helio/http" => id => client.HeliosHttp.GetExportMetaAsync(id, Token),
-        "helio/https" => id => client.HeliosHttps.GetExportMetaAsync(id, Token),
-        "helio/dns" => id => client.HeliosDns.GetExportMetaAsync(id, Token),
-        "helio/adb" => id => client.HeliosAdb.GetExportMetaAsync(id, Token),
+        "helios/http" => id => client.HeliosHttp.GetExportMetaAsync(id, Token),
+        "helios/https" => id => client.HeliosHttps.GetExportMetaAsync(id, Token),
+        "helios/dns" => id => client.HeliosDns.GetExportMetaAsync(id, Token),
+        "helios/adb" => id => client.HeliosAdb.GetExportMetaAsync(id, Token),
         _ => throw new ArgumentException(feed),
     };
 
@@ -225,7 +313,8 @@ public sealed class FeedTests
     {
         var exports = ids.Select(id => $$"""
             {"kind":"hourly","date":"2026-05-03","hour":6,"size_bytes":10,"row_count":2,"checksum":"ab",
-             "id":"{{id}}","created_at":1777788000,"download_path":"/api/v4/feeds/proxies/export/{{id}}"}
+             "id":"{{id}}","created_at":1777788000,"download_path":"/api/v4/feeds/proxies/export/{{id}}",
+             "formats":[{"format":"parquet","size_bytes":10,"checksum":"ab"}]}
             """);
         var cursor = next is null ? "" : $",\"next_cursor\":\"{next}\"";
         return $"{{\"stream\":\"proxies\",\"feeds\":[{string.Join(",", exports)}]{cursor}}}";
@@ -234,6 +323,7 @@ public sealed class FeedTests
     internal const string MetaJson = """
         {"checksum":"ab","date":1777766400,"format":"parquet","size":99,"rows":1234,"hour":7,
          "schema":{"fields":[{"name":"ip","type":"string"},{"name":"asn","type":"uint32"}]},
-         "stream":"torrents","kind":"hourly","id":"2026-05-03/7","created_at":1777770000}
+         "stream":"torrents","kind":"hourly","id":"2026-05-03/7","created_at":1777770000,
+         "formats":[{"format":"parquet","size_bytes":99,"checksum":"ab"}]}
         """;
 }

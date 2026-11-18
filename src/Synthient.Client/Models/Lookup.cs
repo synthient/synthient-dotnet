@@ -3,26 +3,25 @@ using System.Text.Json.Serialization;
 
 namespace Synthient;
 
-/// <summary>
-/// The intelligence Synthient holds for an IP address. <see cref="Network"/>,
-/// <see cref="Location"/>, and <see cref="Intelligence"/> are null when the API has no data for
-/// them.
-/// </summary>
+/// <summary>The intelligence Synthient holds for an IP address.</summary>
 public sealed class IPInfo
 {
     /// <summary>The address that was looked up, as the API canonicalized it.</summary>
     [JsonPropertyName("ip")]
     public required IPAddress IP { get; init; }
 
-    /// <summary>The network that announces the address.</summary>
+    /// <summary>
+    /// The network that announces the address, or null when the address lies in no known network
+    /// range or the enrichment lookup failed.
+    /// </summary>
     [JsonPropertyName("network")]
     public Network? Network { get; init; }
 
-    /// <summary>The address's geolocation.</summary>
+    /// <summary>The address's geolocation, or null when <see cref="Network"/> is null.</summary>
     [JsonPropertyName("location")]
     public Location? Location { get; init; }
 
-    /// <summary>The risk score and the proxy, VPN, and device observations for the address.</summary>
+    /// <summary>The risk score and the proxy, VPN, and device observations for the address, or null when the API has none.</summary>
     [JsonPropertyName("intelligence")]
     public Intelligence? Intelligence { get; init; }
 }

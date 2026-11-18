@@ -3,7 +3,7 @@
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <RootNamespace>Synthient</RootNamespace>
     <PackageId>Synthient.Client</PackageId>
-    <Description>The official .NET client for the Synthient API: IP and domain intelligence, account details, and real-time and bulk data feeds.</Description>
+    <Description>The official .NET client for the Synthient API: IP intelligence, account details, real-time and bulk data feeds, and datasets.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible>true</IsAotCompatible>
     <EnablePackageValidation>true</EnablePackageValidation>

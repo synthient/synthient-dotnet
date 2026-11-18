@@ -12,9 +12,12 @@ namespace Synthient;
 [JsonSerializable(typeof(IPInfo))]
 [JsonSerializable(typeof(IPBatchRequest))]
 [JsonSerializable(typeof(IPBatchResponse))]
+#pragma warning disable CS0618 // Domain lookup is deprecated but still served until the next major version.
 [JsonSerializable(typeof(DomainInfo))]
+#pragma warning restore CS0618
 [JsonSerializable(typeof(ExportPage))]
 [JsonSerializable(typeof(ExportMeta))]
+[JsonSerializable(typeof(ExportVolume))]
 [JsonSerializable(typeof(ProxyEvent))]
 [JsonSerializable(typeof(AnonymizerEvent))]
 [JsonSerializable(typeof(TorrentEvent))]
@@ -26,7 +29,8 @@ namespace Synthient;
 internal sealed partial class SynthientJsonContext : JsonSerializerContext;
 
 // Models are strict: a missing required property, a null where the model has no null, and a null
-// collection element all fail decoding.
+// collection element all fail decoding. Properties added to 1.0 models are marked [JsonRequired]
+// instead of required, so that object initializers written against 1.0 still compile.
 internal static class Json
 {
     internal static readonly JsonSerializerOptions Options = new(SynthientJsonContext.Default.Options)

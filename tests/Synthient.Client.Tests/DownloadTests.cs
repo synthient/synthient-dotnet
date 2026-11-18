@@ -172,6 +172,17 @@ public sealed class DownloadTests
     }
 
     [Fact]
+    public async Task NotModifiedIsNotARedirect()
+    {
+        using var client = Fixtures.StubClient(new StubHandler(new HttpResponseMessage(HttpStatusCode.NotModified)));
+
+        var error = await Assert.ThrowsAsync<SynthientException>(() => client.Proxies.GetDownloadUrlAsync(ExportId.Latest, Token));
+
+        Assert.IsNotType<ApiException>(error);
+        Assert.Contains("304", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RollupsInProgressCarryRetryAfter()
     {
         var handler = new StubHandler(Fixtures.Json(404, """{"type":"t","title":"Not Found","status":404,"detail":"rolling up"}""", ("Retry-After", "60")));
