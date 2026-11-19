@@ -33,7 +33,7 @@ namespace Synthient;
 public sealed class SynthientClient : IDisposable
 {
     /// <summary>The version of this SDK. It is sent in the User-Agent header.</summary>
-    public const string Version = "1.0.0";
+    public const string Version = "1.1.0";
 
     internal const string DomainLookupRemoved =
         "Domain lookup was removed from the Synthient API and will stop working when the endpoint is turned off. It will be removed in the next major version.";

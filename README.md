@@ -55,8 +55,8 @@ The second reference is only needed for the gRPC schema fetcher:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Synthient.Client" Version="1.0.0" />
-  <PackageReference Include="Synthient.Client.GrpcSchema" Version="1.0.0" />
+  <PackageReference Include="Synthient.Client" Version="1.1.0" />
+  <PackageReference Include="Synthient.Client.GrpcSchema" Version="1.1.0" />
 </ItemGroup>
 ```
 

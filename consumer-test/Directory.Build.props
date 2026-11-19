@@ -4,6 +4,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RestorePackagesPath>$(MSBuildThisFileDirectory)packages</RestorePackagesPath>
-    <SynthientVersion Condition="'$(SynthientVersion)' == ''">1.0.0</SynthientVersion>
+    <SynthientVersion Condition="'$(SynthientVersion)' == ''">1.1.0</SynthientVersion>
   </PropertyGroup>
 </Project>
