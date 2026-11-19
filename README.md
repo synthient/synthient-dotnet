@@ -215,7 +215,7 @@ while (!cancellationToken.IsCancellationRequested)
 }
 ```
 
-- The server can close a stream at any time, such as during a deploy. That ends the `await foreach` without an exception, and the outer loop reconnects at once.
+- The server closes each stream after up to 30 minutes. That ends the `await foreach` without an exception, and the outer loop reconnects at once.
 - A 401 or 403 isn't caught, so it ends the loop, because reconnecting can't fix a rejected key or a missing scope. Cancelling the token ends it with an `OperationCanceledException`.
 - Any other failure throws a `SynthientException`, and the loop waits 2 seconds before reconnecting.
 - Events sent while disconnected are missed. The API has no resume cursor.
